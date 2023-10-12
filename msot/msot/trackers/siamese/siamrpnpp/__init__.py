@@ -8,8 +8,8 @@ import torch.nn.functional as F
 
 from msot.libs.pysot.utils.anchor import Anchors, AnchorsCfg
 from msot.models import TModel, TModelResult
-from msot.utils.boxes import Bbox, Center
 from msot.utils.dataship import DataCTR as DC
+from msot.utils.region import Bbox, Center, Point
 
 from .. import (
     ScaledCrop,
@@ -150,19 +150,18 @@ class SiamRPNTracker(SiameseTracker[TrackConfig, TrackerState, TrackResult]):
     def get_subwindow(
         cls,
         im: npt.NDArray[np.uint8],
-        center_pos: npt.NDArray[np.float64],
+        center_pos: Point[float],
         input_size: int,
         original_size: int,
         avg_chans: npt.NDArray[np.float64],
-        is_cuda: bool = True,
+        device: torch.device,
     ) -> torch.Tensor:
         im_patch, _, _, _ = cls._get_img(
             im, center_pos, original_size, avg_chans
         )
         im_patch = im_patch.permute(2, 0, 1)
         im_patch = im_patch.unsqueeze(0)
-        if is_cuda:
-            im_patch = im_patch.cuda()
+        im_patch = im_patch.to(device)
         if not np.array_equal(input_size, original_size):
             im_patch = F.interpolate(
                 im_patch,
@@ -213,10 +212,10 @@ class SiamRPNTracker(SiameseTracker[TrackConfig, TrackerState, TrackResult]):
         st: TrackerState,
         img: npt.NDArray[np.uint8],
         bbox: Bbox,
-        is_cuda: bool,
+        device: torch.device,
     ) -> ScaledCrop:
         st.center.update(
-            np.array([bbox.x1 + (bbox.w - 1) / 2, bbox.y1 + (bbox.h - 1) / 2])
+            Point(bbox.x1 + (bbox.w - 1) / 2, bbox.y1 + (bbox.h - 1) / 2)
         )
         st.size.update(np.array([bbox.w, bbox.h]))
         st.channel_average.update(np.mean(img, axis=(0, 1)))
@@ -229,7 +228,7 @@ class SiamRPNTracker(SiameseTracker[TrackConfig, TrackerState, TrackResult]):
             cfg.exemplar_size,
             size.z_size,
             st.channel_average.val,
-            is_cuda=is_cuda,
+            device=device,
         )
         return ScaledCrop(z_crop, size)
 
@@ -239,7 +238,7 @@ class SiamRPNTracker(SiameseTracker[TrackConfig, TrackerState, TrackResult]):
         cfg: TrackConfig,
         st: TrackerState,
         img: npt.NDArray[np.uint8],
-        is_cuda: bool,
+        device: torch.device,
     ) -> ScaledCrop:
         size = cls.get_sizes(cfg, st)
 
@@ -249,7 +248,7 @@ class SiamRPNTracker(SiameseTracker[TrackConfig, TrackerState, TrackResult]):
             cfg.instance_size,
             size.x_size,
             st.channel_average.val,
-            is_cuda=is_cuda,
+            device=device,
         )
         return ScaledCrop(x_crop, size)
 
@@ -303,8 +302,9 @@ class SiamRPNTracker(SiameseTracker[TrackConfig, TrackerState, TrackResult]):
         bbox = pred_bbox[:, best_idx] / scale
         lr = penalty[best_idx] * score[best_idx] * cfg.lr
 
-        cx = bbox[0] + st.center.val[0]
-        cy = bbox[1] + st.center.val[1]
+        # TODO:
+        cx = bbox[0] + st.center.val.x
+        cy = bbox[1] + st.center.val.y
 
         # smooth bbox
         width = st.size.val[0] * (1 - lr) + bbox[2] * lr
@@ -314,7 +314,7 @@ class SiamRPNTracker(SiameseTracker[TrackConfig, TrackerState, TrackResult]):
         cbox = cls._center_box_clip(cx, cy, width, height, frame_size)
 
         # update state
-        st.center.update(np.array([cbox.cx, cbox.cy], dtype=np.float64))
+        st.center.update(Point(cbox.cx, cbox.cy))
         st.size.update(np.array([cbox.w, cbox.h], dtype=np.float64))
         st.score.update(score)
 
@@ -326,9 +326,8 @@ class SiamRPNTracker(SiameseTracker[TrackConfig, TrackerState, TrackResult]):
     def init(
         self, img: npt.NDArray[np.uint8], bbox: Bbox
     ) -> tuple[ScaledCrop, None]:
-        # self.state_reset()  # IMPORTANT:
         scaled_z = self.get_template(
-            self.config, self.state, img, bbox, self.is_cuda
+            self.config, self.state, img, bbox, self.device
         )
         return (
             scaled_z,
@@ -347,7 +346,7 @@ class SiamRPNTracker(SiameseTracker[TrackConfig, TrackerState, TrackResult]):
     def track(
         self, img: npt.NDArray[np.uint8]
     ) -> tuple[ScaledCrop, TrackResult]:
-        scaled_x = self.get_search(self.config, self.state, img, self.is_cuda)
+        scaled_x = self.get_search(self.config, self.state, img, self.device)
         return (
             scaled_x,
             self.track_with_scaled_search(

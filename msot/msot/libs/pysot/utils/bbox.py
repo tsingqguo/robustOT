@@ -1,7 +1,7 @@
 import numpy as np
 import numpy.typing as npt
 
-from msot.utils.boxes import Bbox, Center
+from msot.utils.region import Bbox, Center
 
 
 def get_axis_aligned_bbox(

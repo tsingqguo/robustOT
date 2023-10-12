@@ -1,7 +1,8 @@
+from __future__ import annotations
 from copy import deepcopy
 from dataclasses import dataclass, field
-from enum import IntEnum
-from typing import Generic, NamedTuple, Type, TypeVar
+from enum import Flag, auto
+from typing import Generic, NamedTuple, Type, TypeVar, TYPE_CHECKING
 
 import numpy as np
 import numpy.typing as npt
@@ -9,11 +10,15 @@ import torch
 
 from msot.trackers.base import BaseTracker
 from msot.trackers.types import ScaledCrop
-from msot.utils.boxes import Bbox
 from msot.utils.dataship import DataCTR as DC, DataShip as DS, VertDCAC
+from msot.utils.region import Bbox
+from msot.utils.timer import Timer, TimerType
 
-from ..historical import Historical
 from ..roles import TDRoles
+
+if TYPE_CHECKING:
+    from ..historical import Historical
+
 
 Input = ScaledCrop | npt.NDArray[np.uint8]
 
@@ -24,30 +29,31 @@ A = TypeVar("A", bound="ProceesorAttrs")
 C = TypeVar("C", bound="ProceesorConfig")
 
 
-class Allow(IntEnum):
+class Allow(Flag):
     """allow input process access to input data"""
 
-    NONE = 0
-    TRACKER = 1 << 0
-    HISTORICAL = 1 << 1
-    TARGET = 1 << 2
+    NONE = auto()
+    TRACKER = auto()
+    HISTORICAL = auto()
+    TARGET = auto()
 
 
 @dataclass
 class ProceesorAttrs(DS):
-    # allow_access: DC[int] = field(
-    #     default_factory=lambda: DC(Allow.NONE, is_shared=True)
-    # )
+    cost: DC[float] = field(
+        default_factory=lambda: DC(is_shared=False, allow_unbound=True)
+    )
 
-    # @property
-    # def valid_names(self) -> set[str]:
-    #     return super().valid_names | {"allow_access"}
+    @property
+    def valid_names(self) -> set[str]:
+        return super().valid_names | {"cost"}
 
     ...
 
 
-@dataclass
+@dataclass(kw_only=True)
 class ProceesorConfig:
+    timer: TimerType | None = None
     allow_access = Allow.NONE
 
 
@@ -102,17 +108,17 @@ class Processor(Generic[A, C]):
             # TODO: fork dilemma
             self.attrs = attrs  # IMPORTANT: deepcopy before Test::action_track
 
-        if Allow.TRACKER & self.config.allow_access:
+        if Allow.TRACKER in self.config.allow_access:
             self._tracker = tracker
         else:
             self._tracker = None
 
-        if Allow.HISTORICAL & self.config.allow_access:
+        if Allow.HISTORICAL in self.config.allow_access:
             self._historical = historical
         else:
             self._historical = None
 
-        if Allow.TARGET & self.config.allow_access:
+        if Allow.TARGET in self.config.allow_access:
             self._process_target = process_target
         else:
             self._process_target = None
@@ -137,6 +143,20 @@ class Processor(Generic[A, C]):
 
     def process(self, input: Input) -> Input | None:
         raise NotImplementedError
+
+    def forward(self, input: Input) -> Input | None:
+        if self.config.timer is not None:
+            timer = Timer(self.config.timer)
+        else:
+            timer = None
+
+        out = self.process(input)
+
+        if out is not None:
+            if timer is not None:
+                self.attrs.cost.unbind()  # FIXME: allow unbind-copy for DC
+                self.attrs.cost.update(timer.elapsed)
+        return out
 
     def reset(self) -> None:
         if hasattr(self, "attrs"):
@@ -178,10 +198,15 @@ class InputProcess:
             raise NotImplementedError
 
     def add(self, *processor: Processor) -> None:
+        exist = set()
         for p in self.processors:
+            exist.add(p.name)
             if hasattr(p, "_tracker"):
                 raise ValueError("add after processors prepared")
         for p in processor:
+            if p.name in exist:
+                raise ValueError(f"processor name {p.name} already exists")
+
             self.processors.append(p)
             p.reset()
 
@@ -193,8 +218,11 @@ class InputProcess:
         process_target: _ProcessTarget,
     ) -> None:
         for p in self.processors:
+            attrs = attributes.get(p.name, None)
+            if attrs is not None:
+                attrs = attrs.smart_clone()
             p.init(
-                deepcopy(attributes.get(p.name, None)),
+                attrs,
                 tracker,
                 historical,
                 process_target,
@@ -214,7 +242,7 @@ class InputProcess:
 
         self._append_to_vert(img_vert, scaled_crop_vert, input, None)
         for p in self.processors:
-            out = p.process(input)
+            out = p.forward(input)
             if out is None:
                 # skip
                 ...

@@ -4,6 +4,8 @@ import numpy as np
 import numpy.typing as npt
 import torch
 
+from msot.utils.region import Point
+
 from ..base import (
     BaseTracker,
     TrackerState as _TrackerState,
@@ -25,11 +27,12 @@ C = TypeVar("C", bound=TrackConfig)
 S = TypeVar("S", bound=TrackerState)
 R = TypeVar("R", bound=TrackResult)
 
+
 class SiameseTracker(BaseTracker[C, S, R]):
     @staticmethod
     def _get_img(
         im: npt.NDArray[np.uint8],
-        center_pos: float | list[float] | npt.NDArray[np.float64],
+        center_pos: Point[float],
         original_size: int,
         avg_chans: npt.NDArray[np.float64],
     ) -> tuple[
@@ -47,16 +50,12 @@ class SiameseTracker(BaseTracker[C, S, R]):
             im_tensor = torch.from_numpy(im).float()
             avg_chans_tensor = torch.from_numpy(avg_chans)
 
-        if isinstance(center_pos, float):
-            pos = [center_pos, center_pos]
-        else:
-            pos = center_pos
         sz = original_size
         im_sz = im_tensor.size()
         c = (original_size + 1) / 2
-        context_xmin: int = np.floor(pos[0] - c + 0.5)
+        context_xmin: int = np.floor(center_pos.x - c + 0.5)
         context_xmax: int = context_xmin + sz - 1
-        context_ymin: int = np.floor(pos[1] - c + 0.5)
+        context_ymin: int = np.floor(center_pos.y - c + 0.5)
         context_ymax: int = context_ymin + sz - 1
         left_pad = int(max(0.0, -context_xmin))
         top_pad = int(max(0.0, -context_ymin))

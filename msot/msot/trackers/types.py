@@ -1,8 +1,14 @@
-from __future__ import annotations
 from dataclasses import dataclass
+from enum import Enum
 from typing import NamedTuple
 
 import torch
+
+
+class Backends(Enum):
+    CPU = "cpu"
+    CUDA = "cuda"
+    MPS = "mps"
 
 
 class TrackSize(NamedTuple):
@@ -23,9 +29,3 @@ class ScaledCrop:
     crop: torch.Tensor
 
     size: TrackSize
-
-    # def __copy__(self) -> ScaledCrop:
-    #     ...
-
-    # def __deepcopy__(self, memo: dict[int, object]) -> ScaledCrop:
-    #     ...

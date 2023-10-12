@@ -6,6 +6,8 @@ from dataclasses import dataclass
 from enum import Enum, auto
 from typing import Callable
 
+from msot.tools.eval.benchmarks.statics import ReservedResults
+
 from ..historical import Analysis, Result
 from ..roles import TDRoles
 
@@ -264,7 +266,6 @@ class _TRFile(TestResult):
             bbox = r.pred.val
             if self.style is ResultStyle.VOT_ST:
                 if r.best_score.val is not None:
-                    # track
                     overlap = a.overlap.get(TDRoles.ANALYSIS)
                     if overlap is None:
                         raise ValueError("overlap is None")
@@ -275,13 +276,11 @@ class _TRFile(TestResult):
                             )
                         )
                     else:
-                        pred.append("2")
+                        pred.append(str(ReservedResults.FAILURE.value))
                 elif r.is_skip.val:
-                    # skip
-                    pred.append("0")
+                    pred.append(str(ReservedResults.SKIP.value))
                 else:
-                    # init
-                    pred.append("1")
+                    pred.append(str(ReservedResults.INIT.value))
             else:
                 pred.append(",".join(map(str, map(int, bbox.unpack2bbox()))))
 

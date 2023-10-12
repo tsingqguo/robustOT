@@ -2,6 +2,7 @@ from .defaults import (
     action_init,
     action_empty,
     action_finish,
+    action_skip,
     action_track,
 )
 from .types import (

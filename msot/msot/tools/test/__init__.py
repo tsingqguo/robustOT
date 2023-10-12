@@ -2,10 +2,12 @@ from __future__ import annotations
 import os
 import time
 from dataclasses import dataclass, field
+from enum import Enum, Flag
 from typing import Generic, Type, TypeVar
 
 import numpy as np
 import numpy.typing as npt
+import torch
 from tqdm import tqdm
 
 from msot.data.datasets import get_dataset
@@ -19,9 +21,9 @@ from msot.trackers.base import (
     TrackerState,
     TrackResult,
 )
-from msot.utils.boxes import Bbox
 from msot.utils.dataship import DataCTR as DC, DataShip as DS
 from msot.utils.option import NONE, Option, Some
+from msot.utils.region import Bbox
 from msot.utils.timer import Timer
 
 from .action import (
@@ -38,12 +40,18 @@ from .action import (
     action_init,
     action_empty,
     action_finish,
+    action_skip,
     action_track,
 )
 from .args import Args
 from .config import TestConfig
 from .info import SequenceInfo
-from .utils.process import InputProcess, ProcessSearch, ProcessTemplate
+from .utils.process import (
+    InputProcess,
+    ProcessSearch,
+    ProcessTemplate,
+    Processor,
+)
 from .utils.historical import Historical
 from .utils.result import TestResult
 from .utils.roles import TDRoles
@@ -54,10 +62,17 @@ TC = TypeVar("TC", bound=TrackConfig)
 TS = TypeVar("TS", bound=TrackerState)
 TR = TypeVar("TR", bound=TrackResult)
 V = TypeVar("V", bound=Video)
+VA = TypeVar("VA", bound=Flag)
 
 # S = TypeVar("S", bound="Shared")
 # class Shared(DS):
 #     ...
+
+
+class TrackActionType(Enum):
+    INIT = "init"
+    SKIP = "skip"
+    TRACK = "track"
 
 
 class TestAttributes(Generic[A]):
@@ -80,7 +95,8 @@ class TestAttributes(Generic[A]):
         self,
         args: A,
         video: V | None = None,
-        dataset: Dataset[V] | None = None,
+        dataset: Dataset[V, VA] | None = None,
+        processors: list[Processor] | None = None,
     ):
         self._args = args
 
@@ -90,25 +106,8 @@ class TestAttributes(Generic[A]):
         )
 
         self.input_process = InputProcess()
-        # TODO: add processors
-        from msot.tools.test.utils.process.builtin import (
-            DefaultCrop,
-            DefaultCropConfig,
-        )
-        from robbox.attackers.csa import (
-            CSAConfig,
-            CSAProcessor,
-            AttackOn,
-            AttackType,
-        )
-
-        csa_config = CSAConfig(
-            AttackOn.TEMPLATE | AttackOn.SEARCH,
-            AttackType.COOLING_SHRINKING,
-            "../tracker_experiments/CSA/checkpoints",
-        )
-        self.input_process.add(DefaultCrop(None, DefaultCropConfig()))
-        self.input_process.add(CSAProcessor("csa_atk", csa_config))
+        for p in processors or []:
+            self.input_process.add(p)
 
         d_name = dataset.name if dataset is not None else "unknown_dset"
         if d_name in ["VOT2018", "VOT2019", "VOT2020"]:  # TODO:
@@ -157,11 +156,10 @@ class Test(Generic[A, TA]):
         self.args = args
         self.test_attrs_cls = test_attrs_cls
 
-        model = TModel(args.config.tracker.model)
-        model = TModel.load_pretrained(model)  # FIXME:
-
-        if args.config.tracker.cuda:
-            model = model.cuda()
+        model = TModel.load_from_config(
+            config=args.config.tracker.model,
+            device=torch.device(args.config.tracker.backend.value),
+        )
         model = model.eval()
 
         from msot.trackers.siamese.siamrpnpp import (
@@ -181,7 +179,7 @@ class Test(Generic[A, TA]):
             raise NotImplementedError
 
         self.action_init = action_init
-        self.action_skip = action_empty
+        self.action_skip = action_skip
         self.action_track = action_track
         self.action_post = action_empty
         self.action_finish = action_finish
@@ -220,14 +218,14 @@ class TestServer(Generic[A, TA]):
             self.test.args.force,
         )
 
-    def next(self, frame: npt.NDArray[np.uint8], gt_box):
+    def next(self, frame: npt.NDArray[np.uint8], gt):
         if self._attrs is None:
             raise RuntimeError("test server not initialized")
 
         self._attrs.historical.next()
         idx = len(self._attrs.historical) - 1
 
-        ct = get_axis_aligned_bbox(np.array(gt_box))
+        ct = get_axis_aligned_bbox(np.array(gt))
         bbox = Bbox(
             ct.cx - (ct.w - 1) / 2,
             ct.cy - (ct.h - 1) / 2,
@@ -245,9 +243,16 @@ class TestServer(Generic[A, TA]):
             self._attrs.sequence_info.check_size(frame.shape[:2])
 
         if idx == self._attrs.start_at:
+            tat = TrackActionType.INIT
+        elif idx < self._attrs.start_at:
+            tat = TrackActionType.SKIP
+        else:
+            tat = TrackActionType.TRACK
+
+        if tat is TrackActionType.INIT:
             # TODO: group-ip
             group_tracker = self.test.raw_tracker.fork()
-            group_tracker.state_reset() # IMPORTANT: for init
+            group_tracker.state_reset()  # IMPORTANT: for init
             self._attrs.input_process.prepare(
                 {},  # FIXME: always empty attrs for init
                 group_tracker,
@@ -267,7 +272,8 @@ class TestServer(Generic[A, TA]):
             self._attrs.historical.set_cur_result(
                 lambda R: R(self.test.raw_tracker.state, bbox, None),
             )
-        elif idx < self._attrs.start_at:
+
+        if tat is TrackActionType.SKIP:
             params = ParamsFrameSkip(
                 raw_tracker=self.test.raw_tracker,
                 historical=self._attrs.historical,
@@ -282,7 +288,8 @@ class TestServer(Generic[A, TA]):
                     is_skip=True,
                 ),
             )
-        else:
+
+        if tat is TrackActionType.TRACK:
             processor_attrs = (
                 self._attrs.historical.last.unwrap().tracking.processor_attrs
             )
@@ -310,22 +317,33 @@ class TestServer(Generic[A, TA]):
                 ),
             )
 
-        overlap = (
-            self._attrs.historical.cur.result.unwrap().pred.val.overlap_ratio(
-                self._attrs.historical.cur.frame.unwrap().bbox.get(
-                    TDRoles.TEST
-                )
-            )
+        overlap = self._attrs.historical.cur.result.unwrap().pred.val.get_overlap_ratio(
+            self._attrs.historical.cur.frame.unwrap().bbox.get(TDRoles.TEST)
         )  # TODO: ignore skipped / init;
         # TODO: collapsable variables
+
+        if self._attrs.historical.cur.tracking.is_some():
+            process_costs = list(
+                map(
+                    lambda pa: (pa[0], pa[1].cost.get(default=None)),
+                    self._attrs.historical.cur.tracking.unwrap()
+                    .processor_attrs.get(default={})
+                    .items(),
+                )
+            )
+        else:
+            process_costs = []
+
         self._attrs.historical.set_cur_analysis(
             lambda A: A(
                 overlap=overlap,
+                process_costs=process_costs,
             ),
         )
 
         if (
-            self._attrs.restart_overlap_thld is not None
+            tat is TrackActionType.TRACK
+            and self._attrs.restart_overlap_thld is not None
             and overlap <= self._attrs.restart_overlap_thld
         ):
             if self._attrs.restart_skips is None:
@@ -361,19 +379,16 @@ class TestServer(Generic[A, TA]):
 
 def run_dataset(test: Test, dataset: Dataset):
     for idx, video in enumerate(dataset):
-        print(f"[{idx+1}/{len(dataset)}] running", video.name)
-        run_video(test, video, dataset=dataset)
+        run_video(test, video)
 
 
 def run_video(
     test: Test[A, TA],
     video: Video,
-    dataset: Dataset | None = None,
     test_attr_params: dict | None = None,
 ):
     server = TestServer(test)
     success = server.init(
-        dataset=dataset,
         video=video,
         test_attr_params=test_attr_params,
     )
@@ -388,7 +403,7 @@ def run_video(
         ncols=60,
     )
 
-    for _, (img, gt_bbox) in enumerate(pbar):
-        server.next(img, gt_bbox)
+    for _, (img, gt) in enumerate(pbar):
+        server.next(img, gt)
 
     server.finish()

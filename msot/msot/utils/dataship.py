@@ -9,6 +9,7 @@ import torch
 
 R = TypeVar("R", bound=Enum)
 T = TypeVar("T")
+U = TypeVar("U")
 X = TypeVar("X")
 Y = TypeVar("Y")
 
@@ -50,7 +51,7 @@ class DataCTR(Generic[T]):
     def value(self) -> T:
         return self.val
 
-    def get(self, *, default: T | DataUnbound = DataUnbound()) -> T:
+    def get(self, *, default: T | U | DataUnbound = DataUnbound()) -> T | U:
         if isinstance(self._val, DataUnbound):
             if isinstance(default, DataUnbound):
                 raise RuntimeError("Unbound data")
@@ -141,7 +142,9 @@ class DataCTRAC(DataCTR[T], Generic[T, R]):
     def val(self):
         raise RuntimeError("Locked DataCTR, using `get(role: R)` instead")
 
-    def get(self, role: R, default: T | DataUnbound = DataUnbound()) -> T:
+    def get(
+        self, role: R, default: T | U | DataUnbound = DataUnbound()
+    ) -> T | U:
         if self._access_validator(role):
             return super().get(default=default)
         else:
@@ -263,34 +266,4 @@ if __name__ == "__main__":
         _ = [data.smart_clone() for _ in range(n)]
         print(f"Memory usage after cloning {n} times: {mem_usage_mb():.2f} MB")
 
-    def test_dcac(n):
-        class Role(Enum):
-            A = 1
-            B = 2
-
-        tensor = torch.randn(1000, 1000)
-        data = DataCTRAC(
-            Role, lambda r: r == Role.A, tensor, is_shared=is_shared
-        )
-        print(f"Memory usage before cloning: {mem_usage_mb():.2f} MB")
-
-        _ = [data.smart_clone() for _ in range(n)]
-        print(f"Memory usage after cloning {n} times: {mem_usage_mb():.2f} MB")
-
-    def test_vert_dcac(n):
-        class Role(Enum):
-            A = 1
-            B = 2
-
-        vert = VertDCAC(Role, lambda r: r == Role.A, lambda r: r == Role.B)
-        vert.append(torch.randn(1000, 1000), 1)
-        vert.append(torch.randn(1000, 1000), 2)
-        vert.append(torch.randn(1000, 1000), 3)
-        print(f"Memory usage before cloning: {mem_usage_mb():.2f} MB")
-
-        _ = [vert.smart_clone() for _ in range(n)]
-        print(f"Memory usage after cloning {n} times: {mem_usage_mb():.2f} MB")
-
-    # test_clone(100)
-    test_dcac(100)
-    # test_vert_dcac(100)
+    test_clone(100)

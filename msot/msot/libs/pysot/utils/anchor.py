@@ -4,8 +4,8 @@ from dataclasses import dataclass, field
 import numpy as np
 import numpy.typing as npt
 
-from msot.utils.boxes import Corner, Center
 from msot.utils.config import Config
+from msot.utils.region import Corner, Center
 
 
 @dataclass

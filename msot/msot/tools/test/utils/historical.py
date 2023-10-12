@@ -1,4 +1,5 @@
-from typing import Callable, Generic, NamedTuple, Type, TypeVar
+from __future__ import annotations
+from typing import Callable, Generic, NamedTuple, Type, TypeVar, TYPE_CHECKING
 
 import numpy as np
 import numpy.typing as npt
@@ -6,7 +7,6 @@ import torch
 
 from msot.trackers.base import TrackerState
 from msot.trackers.types import ScaledCrop
-from msot.utils.boxes import Bbox, Center
 from msot.utils.dataship import (
     DataCTR as DC,
     DataCTRAC as DCAC,
@@ -14,8 +14,12 @@ from msot.utils.dataship import (
     VertDCAC,
 )
 from msot.utils.option import NONE, Option, Some
+from msot.utils.region import Bbox, Center
 
 from .roles import TDRoles
+
+if TYPE_CHECKING:
+    from .process import ProceesorAttrs
 
 TS = TypeVar("TS", bound=TrackerState)
 U = TypeVar("U", bound=DS)
@@ -119,7 +123,7 @@ class Analysis(DS):
 class Tracking(DS):
     scaled_z: VertDCAC[ScaledCrop, TDRoles, str | None]
     scaled_x: VertDCAC[ScaledCrop, TDRoles, str | None]
-    processor_attrs: DC[dict]  # dict[str, ProceesorAttrs]
+    processor_attrs: DC[dict[str, ProceesorAttrs]]
 
     @property
     def valid_names(self) -> set[str]:

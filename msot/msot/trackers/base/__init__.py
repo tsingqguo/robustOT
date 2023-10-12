@@ -7,8 +7,8 @@ import numpy.typing as npt
 import torch
 
 from msot.models import TModel
-from msot.utils.boxes import Bbox
 from msot.utils.dataship import DataCTR as DC, DataShip as DS
+from msot.utils.region import Bbox, Point
 
 from ..types import ScaledCrop
 from .config import TrackConfig
@@ -22,7 +22,7 @@ class TrackerState(DS):
     size: DC[npt.NDArray[np.float64]]
     """size in format of (width, height)"""
 
-    center: DC[npt.NDArray[np.float64]]
+    center: DC[Point[float]]
     """center postition"""
 
     @property
@@ -104,6 +104,10 @@ class BaseTracker(Generic[C, S, R]):
     def is_cuda(self) -> bool:
         return next(self.model.parameters()).is_cuda
 
+    @property
+    def device(self) -> torch.device:
+        return next(self.model.parameters()).device
+
     def absorb(self, tracker) -> None:
         if not isinstance(tracker, self.__class__):
             raise RuntimeError("tracker type mismatch")
@@ -138,7 +142,7 @@ class BaseTracker(Generic[C, S, R]):
         st: TrackerState,
         img: npt.NDArray[np.uint8],
         bbox: Bbox,
-        is_cuda: bool,
+        device: torch.device,
     ) -> ScaledCrop:
         raise NotImplementedError
 
@@ -148,7 +152,7 @@ class BaseTracker(Generic[C, S, R]):
         cfg: TrackConfig,
         st: TrackerState,
         img: npt.NDArray[np.uint8],
-        is_cuda: bool,
+        device: torch.device,
     ) -> ScaledCrop:
         raise NotImplementedError
 

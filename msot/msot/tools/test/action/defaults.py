@@ -8,6 +8,7 @@ from .types import (
     ParamsFrame,
     ParamsFrameFinish,
     ParamsFrameInit,
+    ParamsFrameSkip,
     ParamsFrameTrack,
 )
 
@@ -32,6 +33,10 @@ def action_init(params: ParamsFrameInit) -> None:
 
     tracking = params.historical.set_cur_tracking(lambda T: T())
     tracking.scaled_z.append(scaled_z, None)
+
+
+def action_skip(params: ParamsFrameSkip) -> None:
+    params.historical.set_cur_tracking(lambda T: T())
 
 
 def action_track(params: ParamsFrameTrack) -> TrackResult:

@@ -2,8 +2,10 @@ from dataclasses import dataclass, field
 from typing import Generic, TypeVar
 
 from msot.models.config import ModelConfig
-from msot.trackers.base.config import TrackConfig
 from msot.utils.config import Config
+
+from .base.config import TrackConfig
+from .types import Backends
 
 C = TypeVar("C", bound=TrackConfig)
 
@@ -19,4 +21,4 @@ class TrackerConfig(Config, Generic[C]):
     name: str = "arbitrary_tracker"
     """name of tracker"""
 
-    cuda: bool = True
+    backend: Backends = Backends.CPU

@@ -1,6 +1,5 @@
 from dataclasses import dataclass
-from enum import IntEnum
-from typing import Type
+from enum import Flag, auto
 
 from .ip import (
     Allow,
@@ -17,7 +16,6 @@ class NoProcess(Processor[ProceesorAttrs, ProceesorConfig]):
     def __init__(
         self,
         name: str | None,
-        # config: ProceesorConfig,
     ) -> None:
         super().__init__(name or "noproc", ProceesorConfig(), ProceesorAttrs)
 
@@ -30,9 +28,9 @@ class DefaultCropAttrs(ProceesorAttrs):
     allow_access = Allow.TRACKER | Allow.TARGET
 
 
-class DefaultCropOn(IntEnum):
-    TEMPLATE = 1 << 0
-    SEARCH = 1 << 1
+class DefaultCropOn(Flag):
+    TEMPLATE = auto()
+    SEARCH = auto()
 
 
 @dataclass
@@ -54,7 +52,7 @@ class DefaultCrop(Processor[DefaultCropAttrs, DefaultCropConfig]):
 
         if isinstance(input, np.ndarray):
             if type(self.process_target) is ProcessTemplate:
-                if not self.config.crop_on & DefaultCropOn.TEMPLATE:
+                if not DefaultCropOn.TEMPLATE in self.config.crop_on:
                     return None
 
                 return self.tracker.get_template(
@@ -62,17 +60,17 @@ class DefaultCrop(Processor[DefaultCropAttrs, DefaultCropConfig]):
                     self.tracker.state,
                     input,
                     self.process_target.bbox,
-                    self.tracker.is_cuda,
+                    self.tracker.device,
                 )
             elif type(self.process_target) is ProcessSearch:
-                if not self.config.crop_on & DefaultCropOn.SEARCH:
+                if not DefaultCropOn.SEARCH in self.config.crop_on:
                     return None
 
                 return self.tracker.get_search(
                     self.tracker.config,
                     self.tracker.state,
                     input,
-                    self.tracker.is_cuda,
+                    self.tracker.device,
                 )
             else:
                 raise RuntimeError("invalid process target type")

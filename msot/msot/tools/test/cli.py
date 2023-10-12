@@ -1,5 +1,5 @@
 import sys
-from typing import Optional, Type, TypeVar
+from typing import Type, TypeVar
 
 from typed_cap import Cap
 
@@ -18,29 +18,29 @@ class CliArgs:
     """path to config file"""
 
     # @alias=d
-    datasets: Optional[list[VALID_DATASET_NAMES]]
+    datasets: list[VALID_DATASET_NAMES] | None
     """dataset names to test"""
 
     # @alias=f
-    force: Optional[bool]
+    force: bool = False
     """overwrite existing results"""
 
     # @alias=o
     output_dir: str = "results"
     """path to output directory"""
 
-    tracker_name: Optional[str]
+    tracker_name: str | None
     """override tracker name"""
 
     # @alias=t
     timeout: int = 60 * 60 * 24
     """timeout for each run"""
 
-    suffix: Optional[str]
+    suffix: str | None
     """suffix for variant name"""
 
     # @alias=g
-    gpu_id: Optional[list[int]]
+    gpu_id: list[int] | None
     """gpu id to use"""
 
 
@@ -49,7 +49,7 @@ def args_parse(
 ) -> tuple[list[str], T]:
     cap = Cap(cliargs)
     parsed = cap.parse(argv)
-    return parsed.args, parsed.val
+    return parsed.argv, parsed.args
 
 
 def initial_testing_args(

@@ -1,5 +1,6 @@
 from __future__ import annotations
 from typing import NamedTuple
+from typing_extensions import Self
 
 import torch
 import torch.nn as nn
@@ -47,12 +48,25 @@ class TModel(nn.Module):
         else:
             self.mask_head = None
 
+    @classmethod
+    def load_from_config(
+        cls, config: ModelConfig, device: torch.device
+    ) -> Self:
+        model = cls(config)
+        model = model.load_pretrained(model, device)
+        return model
+
     @property
     def config(self) -> ModelConfig:
         return self._config
 
+    # TODO: abs
     @staticmethod
-    def load_pretrained(model: TModel, pretrained: str | None = None):
+    def load_pretrained(
+        model: TModel,
+        device: torch.device,
+        pretrained: str | None = None,
+    ):
         from msot.libs.pysot.utils.model_load import load_pretrain
 
         if pretrained is None:
@@ -61,7 +75,9 @@ class TModel(nn.Module):
         if pretrained is None:
             raise ValueError("no pretrained model provided")
 
-        return load_pretrain(model, pretrained)
+        model = load_pretrain(model, pretrained)
+        model = model.to(device)
+        return model
 
     def get_template_feature(self, z: torch.Tensor) -> torch.Tensor:
         f = self.backbone(z)

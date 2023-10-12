@@ -1,29 +1,45 @@
 import time
-from enum import Enum
+from enum import Enum, auto
 from typing import Callable, Type, overload
+
+import torch
 
 
 class TimerType(Enum):
-    std = 0
-    cv2 = 1
+    STD = auto()
+    CV2 = auto()
+    CUDA = auto()
 
 
 def get_current(type: TimerType):
-    if type == TimerType.std:
+    if type == TimerType.STD:
         return time.time()
-    elif type == TimerType.cv2:
+    elif type == TimerType.CV2:
         import cv2
 
         return cv2.getTickCount()
+    elif type == TimerType.CUDA:
+        start = torch.cuda.Event(enable_timing=True)
+        end = torch.cuda.Event(enable_timing=True)
+        start.record()
+
+        return (start, end)
 
 
-def get_elapsed(start, end, type: TimerType):
-    if type == TimerType.std:
+def get_elapsed(start, type: TimerType):
+    if type == TimerType.STD:
+        end = get_current(type)
         return end - start
-    elif type == TimerType.cv2:
+    elif type == TimerType.CV2:
         import cv2
 
+        end = get_current(type)
         return (end - start) / cv2.getTickFrequency()
+    elif type == TimerType.CUDA:
+        start, end = start
+        end.record()
+        torch.cuda.synchronize()
+        return start.elapsed_time(end) / 1000
 
 
 class Timer:
@@ -45,7 +61,7 @@ class Timer:
         tt: TimerType | Callable[[Type[TimerType]], TimerType] | None = None,
     ) -> None:
         if tt is None:
-            tt = TimerType.std
+            tt = TimerType.STD
         elif isinstance(tt, TimerType):
             ...
         elif callable(tt):
@@ -53,19 +69,23 @@ class Timer:
         else:
             raise NotImplementedError
         self._type = tt
+
+        if self._type == TimerType.CUDA:
+            assert torch.cuda.is_available(), "CUDA is not available"
+
         self.reset()
 
     @property
-    def elapsed(self):
-        return get_elapsed(self._t[-1], get_current(self._type), self._type)
+    def elapsed(self) -> float:
+        return get_elapsed(self._t[-1], self._type)
 
     def reset(self):
         self._t = [get_current(self._type)]
 
 
 if __name__ == "__main__":
-    t1 = Timer(TimerType.cv2)
-    t2 = Timer(TimerType.std)
+    t1 = Timer(TimerType.CV2)
+    t2 = Timer(TimerType.STD)
     time.sleep(0.1)
     print(t1.elapsed)
     print(t2.elapsed)

@@ -248,6 +248,8 @@ class _TRFile(TestResult):
         try:
             self.place_mark(sequence_name)
             return True
+        except FileExistsError:
+            return False
         except _TRFileMarkNotMatch:
             return False
         except json.JSONDecodeError:

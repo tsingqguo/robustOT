@@ -123,6 +123,21 @@ class Processor(Generic[A, C]):
         else:
             self._process_target = None
 
+    def __str__(self) -> str:
+        import json
+        from enum import Enum
+
+        def config_deserialize(obj):
+            if isinstance(obj, Enum):
+                return obj.name
+            raise TypeError(f"unknown type: {obj.__class__.__name__}")
+
+        return "{}: {} {}".format(
+            self.__class__.__name__,
+            self.name,
+            json.dumps(self.config.__dict__, default=config_deserialize),
+        )
+
     @property
     def tracker(self) -> BaseTracker:
         if self._tracker is None:
@@ -168,6 +183,44 @@ class Processor(Generic[A, C]):
 
     # def summary(self):
     #     raise NotImplementedError
+
+    @staticmethod
+    def from_file(fp: str) -> Processor:
+        import pathlib
+        from os import path
+        from typing import Callable
+
+        from msot.utils.config.helper import _get_sources_from_namespace
+
+        if not path.exists(fp):
+            raise FileNotFoundError(f"processor file {fp} not found")
+
+        ext = pathlib.Path(fp).suffix[1:]
+        if ext != "py":
+            raise NotImplementedError(
+                f"unsupported processor file extension: {ext}"
+            )
+        else:
+            ns = {}
+            exec(open(fp).read(), {}, ns)
+            # TODO: sources support
+            setup: Callable[[], None] | None = ns.get("setup")
+
+        if setup is None:
+            raise ValueError("No setup function found in namespace")
+        else:
+            proc = setup()
+
+        if not isinstance(proc, Processor):
+            raise TypeError("setup function must return `Processor`")
+
+        # TODO: log
+        print(
+            "[DEBUG] loading processor from file: {}\n\t{}".format(
+                fp, str(proc)
+            )
+        )
+        return proc
 
 
 class _ProcessOutput(NamedTuple):

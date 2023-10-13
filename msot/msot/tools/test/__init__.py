@@ -106,6 +106,8 @@ class TestAttributes(Generic[A]):
         )
 
         self.input_process = InputProcess()
+        for p in args.processors or []:
+            self.input_process.add(p)
         for p in processors or []:
             self.input_process.add(p)
 

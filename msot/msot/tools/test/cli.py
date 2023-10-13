@@ -1,14 +1,16 @@
 import sys
-from typing import Type, TypeVar
+from typing import Type, TypeVar, Union
 
 from typed_cap import Cap
 
-from msot.data.datasets import VALID_DATASET_NAMES
+from msot.data.datasets import VALID_DATASET_NAMES, get_dataset
 from msot.utils import unwrap_or
 
 from .args import Args
 from .config import TestConfig
+from .utils.process import Processor
 
+A = TypeVar("A", bound=Args)
 T = TypeVar("T")
 
 
@@ -18,8 +20,11 @@ class CliArgs:
     """path to config file"""
 
     # @alias=d
-    datasets: list[VALID_DATASET_NAMES] | None
+    datasets: Union[list[VALID_DATASET_NAMES], None]  # TODO:
     """dataset names to test"""
+
+    # @alias=p @none_delimiter
+    processors: Union[list[str], None]  # TODO: typed_cap uniontype issue
 
     # @alias=f
     force: bool = False
@@ -52,20 +57,40 @@ def args_parse(
     return parsed.argv, parsed.args
 
 
-def initial_testing_args(
+def test_args_init(
     cliargs: CliArgs,
-    argv: list[str],
-    args: Args,
-):
-    args.config = TestConfig.unsafe_load(cliargs.config)
-    args.dataset_names = unwrap_or(cliargs.datasets, [])
-    args.force = unwrap_or(cliargs.force, args.config.force)
-    args.output_dir = cliargs.output_dir
-    args.result_timeout_thld = cliargs.timeout
-    args.variant_name = None
-    args.variant_suffix = unwrap_or(cliargs.suffix, "")
+    cliargs_argv: list[str],
+    args_cls: Type[A],
+) -> A:
+    config = TestConfig.unsafe_load(cliargs.config)
+    datasets = []
+    for d_name in unwrap_or(cliargs.datasets, []):
+        datasets.append(get_dataset(d_name))
+    if cliargs.processors is not None:
+        processors = []
+        for p_fp in cliargs.processors:
+            processors.append(Processor.from_file(p_fp))
+    else:
+        processors = None
+
+    force = unwrap_or(cliargs.force, config.force)
+    output_dir = cliargs.output_dir
+    result_timeout_thld = cliargs.timeout
+    variant_name = None
+    variant_suffix = unwrap_or(cliargs.suffix, "")
 
     if cliargs.gpu_id is not None:
         import os
 
         os.environ["CUDA_VISIBLE_DEVICES"] = ",".join(map(str, cliargs.gpu_id))
+
+    return args_cls(
+        config=config,
+        datasets=datasets,
+        processors=processors,
+        force=force,
+        output_dir=output_dir,
+        result_timeout_thld=result_timeout_thld,
+        variant_name=variant_name,
+        variant_suffix=variant_suffix,
+    )

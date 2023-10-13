@@ -1,13 +1,17 @@
-from msot.data.datasets import VALID_DATASET_NAMES
+from dataclasses import dataclass
+from msot.data.datasets import Dataset
 
 from .config import TestConfig
+from .utils.process import Processor
 
-
+@dataclass
 class Args:
     config: TestConfig
     """config loaded from file"""
 
-    dataset_names: list[VALID_DATASET_NAMES]
+    datasets: list[Dataset]
+
+    processors: list[Processor] | None
 
     force: bool
     """overwrite existing results"""

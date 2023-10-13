@@ -2,7 +2,7 @@ from __future__ import annotations
 from copy import deepcopy
 from dataclasses import dataclass, field
 from enum import Flag, auto
-from typing import Generic, NamedTuple, Type, TypeVar, TYPE_CHECKING
+from typing import Generic, NamedTuple, Type, TypeAlias, TypeVar, TYPE_CHECKING
 
 import numpy as np
 import numpy.typing as npt
@@ -20,10 +20,11 @@ if TYPE_CHECKING:
     from ..historical import Historical
 
 
-Input = ScaledCrop | npt.NDArray[np.uint8]
+FrameImage: TypeAlias = npt.NDArray[np.uint8]
+Input: TypeAlias = ScaledCrop | FrameImage
 
-_ImgVert = VertDCAC[npt.NDArray[np.uint8], TDRoles, str | None]
-_ScaledCropVert = VertDCAC[ScaledCrop, TDRoles, str | None]
+_ImgVert: TypeAlias = VertDCAC[FrameImage, TDRoles, str | None]
+_ScaledCropVert: TypeAlias = VertDCAC[ScaledCrop, TDRoles, str | None]
 
 A = TypeVar("A", bound="ProceesorAttrs")
 C = TypeVar("C", bound="ProceesorConfig")
@@ -36,6 +37,17 @@ class Allow(Flag):
     TRACKER = auto()
     HISTORICAL = auto()
     TARGET = auto()
+
+
+class ValidInput(Flag):
+    FRAME_IMAGE = auto()
+    SCALED_CROP = auto()
+
+
+class ValidOutput(Flag):
+    NONE = auto()
+    FRAME_IMAGE = auto()
+    SCALED_CROP = auto()
 
 
 @dataclass
@@ -53,8 +65,12 @@ class ProceesorAttrs(DS):
 
 @dataclass(kw_only=True)
 class ProceesorConfig:
-    timer: TimerType | None = None
     allow_access = Allow.NONE
+    timer: TimerType | None = None
+    valid_input = ValidInput.FRAME_IMAGE | ValidInput.SCALED_CROP
+    valid_output = (
+        ValidOutput.NONE | ValidOutput.FRAME_IMAGE | ValidOutput.SCALED_CROP
+    )
 
 
 @dataclass
@@ -160,12 +176,39 @@ class Processor(Generic[A, C]):
         raise NotImplementedError
 
     def forward(self, input: Input) -> Input | None:
+        if isinstance(input, np.ndarray):
+            if not ValidInput.FRAME_IMAGE in self.config.valid_input:
+                raise RuntimeError(
+                    f"{self.__class__.__name__} does not accept frame image as input"
+                )
+        elif isinstance(input, ScaledCrop):
+            if not ValidInput.SCALED_CROP in self.config.valid_input:
+                raise RuntimeError(
+                    f"{self.__class__.__name__} does not accept scaled crop as input"
+                )
+
         if self.config.timer is not None:
             timer = Timer(self.config.timer)
         else:
             timer = None
 
         out = self.process(input)
+
+        if isinstance(out, np.ndarray):
+            if not ValidOutput.FRAME_IMAGE in self.config.valid_output:
+                raise RuntimeError(
+                    f"{self.__class__.__name__} does not allow frame image as output"
+                )
+        elif isinstance(out, ScaledCrop):
+            if not ValidOutput.SCALED_CROP in self.config.valid_output:
+                raise RuntimeError(
+                    f"{self.__class__.__name__} does not allow scaled crop as output"
+                )
+        elif out is None:
+            if not ValidOutput.NONE in self.config.valid_output:
+                raise RuntimeError(
+                    f"{self.__class__.__name__} does not allow `None` as output"
+                )
 
         if out is not None:
             if timer is not None:

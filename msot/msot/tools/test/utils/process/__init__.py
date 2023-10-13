@@ -7,4 +7,6 @@ from .ip import (
     Processor,
     ProceesorAttrs,
     ProceesorConfig,
+    ValidInput,
+    ValidOutput,
 )

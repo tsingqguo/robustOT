@@ -9,15 +9,22 @@ from .ip import (
     Processor,
     ProceesorAttrs,
     ProceesorConfig,
+    ScaledCrop,
+    ValidOutput,
 )
 
 
-class NoProcess(Processor[ProceesorAttrs, ProceesorConfig]):
+@dataclass
+class _NoProcessConfig(ProceesorConfig):
+    valid_output = ValidOutput.FRAME_IMAGE | ValidOutput.SCALED_CROP
+
+
+class NoProcess(Processor[ProceesorAttrs, _NoProcessConfig]):
     def __init__(
         self,
         name: str | None,
     ) -> None:
-        super().__init__(name or "noproc", ProceesorConfig(), ProceesorAttrs)
+        super().__init__(name or "noproc", _NoProcessConfig(), ProceesorAttrs)
 
     def process(self, input: Input) -> Input:
         return input
@@ -37,6 +44,7 @@ class DefaultCropOn(Flag):
 class DefaultCropConfig(ProceesorConfig):
     allow_access = Allow.TRACKER | Allow.TARGET
     crop_on = DefaultCropOn.TEMPLATE | DefaultCropOn.SEARCH
+    valid_output = ValidOutput.NONE | ValidOutput.SCALED_CROP
 
 
 class DefaultCrop(Processor[DefaultCropAttrs, DefaultCropConfig]):
@@ -47,10 +55,8 @@ class DefaultCrop(Processor[DefaultCropAttrs, DefaultCropConfig]):
     ) -> None:
         super().__init__(name or "default_crop", config, DefaultCropAttrs)
 
-    def process(self, input: Input) -> Input | None:
-        import numpy as np
-
-        if isinstance(input, np.ndarray):
+    def process(self, input: Input) -> ScaledCrop | None:
+        if not isinstance(input, ScaledCrop):
             if type(self.process_target) is ProcessTemplate:
                 if not DefaultCropOn.TEMPLATE in self.config.crop_on:
                     return None
@@ -75,4 +81,13 @@ class DefaultCrop(Processor[DefaultCropAttrs, DefaultCropConfig]):
             else:
                 raise RuntimeError("invalid process target type")
         else:
-            raise RuntimeError("DefaultCrop only accepts uncropped input")
+            if type(self.process_target) is ProcessTemplate:
+                if not DefaultCropOn.TEMPLATE in self.config.crop_on:
+                    return None
+            elif type(self.process_target) is ProcessSearch:
+                if not DefaultCropOn.SEARCH in self.config.crop_on:
+                    return None
+
+            raise RuntimeError(
+                "DefaultCrop does not accept scaled crop as input; try to config `crop_on`"
+            )

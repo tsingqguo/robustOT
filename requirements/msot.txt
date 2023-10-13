@@ -1,0 +1,6 @@
+h5py
+numpy
+opencv-python
+torch>=2.0.0
+tqdm
+typed_cap>=0.3.0

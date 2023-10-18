@@ -5,11 +5,9 @@ from enum import Flag, auto
 from typing import Generic, NamedTuple, Type, TypeAlias, TypeVar, TYPE_CHECKING
 
 import numpy as np
-import numpy.typing as npt
-import torch
 
 from msot.trackers.base import BaseTracker
-from msot.trackers.types import ScaledCrop
+from msot.trackers.types import FrameImage, ScaledCrop
 from msot.utils.dataship import DataCTR as DC, DataShip as DS, VertDCAC
 from msot.utils.region import Bbox
 from msot.utils.timer import Timer, TimerType
@@ -20,11 +18,13 @@ if TYPE_CHECKING:
     from ..historical import Historical
 
 
-FrameImage: TypeAlias = npt.NDArray[np.uint8]
 Input: TypeAlias = ScaledCrop | FrameImage
 
-_ImgVert: TypeAlias = VertDCAC[FrameImage, TDRoles, str | None]
-_ScaledCropVert: TypeAlias = VertDCAC[ScaledCrop, TDRoles, str | None]
+_PInfo = tuple[int, str | None]
+"""`(exec_order, name | None)`"""
+
+FrameImageVert: TypeAlias = VertDCAC[FrameImage, TDRoles, _PInfo]
+ScaledCropVert: TypeAlias = VertDCAC[ScaledCrop, TDRoles, _PInfo]
 
 A = TypeVar("A", bound="ProceesorAttrs")
 C = TypeVar("C", bound="ProceesorConfig")
@@ -284,12 +284,12 @@ class InputProcess:
         img_vert: _ImgVert,
         scaled_crop_vert: _ScaledCropVert,
         input: Input,
-        p_name: str | None,
+        p_info: _PInfo,
     ) -> None:
         if isinstance(input, np.ndarray):
-            img_vert.append(input, p_name)
+            img_vert.append(input, p_info)
         elif isinstance(input, ScaledCrop):
-            scaled_crop_vert.append(input, p_name)
+            scaled_crop_vert.append(input, p_info)
         else:
             raise NotImplementedError
 
@@ -336,15 +336,17 @@ class InputProcess:
             lambda role: role >= TDRoles.DEBUG,
         )
 
-        self._append_to_vert(img_vert, scaled_crop_vert, input, None)
-        for p in self.processors:
+        self._append_to_vert(img_vert, scaled_crop_vert, input, (0, None))
+        for ei, p in enumerate(self.processors):
             out = p.forward(input)
             if out is None:
                 # skip
                 ...
             else:
                 input = out
-                self._append_to_vert(img_vert, scaled_crop_vert, input, p.name)
+                self._append_to_vert(
+                    img_vert, scaled_crop_vert, input, p_info=(ei + 1, p.name)
+                )
 
         attrs = {}
         for p in self.processors:

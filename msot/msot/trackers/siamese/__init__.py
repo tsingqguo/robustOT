@@ -34,7 +34,7 @@ class SiameseTracker(BaseTracker[C, S, R]):
         im: npt.NDArray[np.uint8],
         center_pos: Point[float],
         original_size: int,
-        avg_chans: npt.NDArray[np.float64],
+        avg_chans: npt.NDArray[np.float_],
     ) -> tuple[
         torch.Tensor,
         tuple[int, int, int, int],

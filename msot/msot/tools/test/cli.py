@@ -23,6 +23,9 @@ class CliArgs:
     datasets: Union[list[VALID_DATASET_NAMES], None]  # TODO:
     """dataset names to test"""
 
+    # @alias=S
+    sequences: Union[list[str], None]  # TODO:
+
     # @alias=p @none_delimiter
     processors: Union[list[str], None]  # TODO: typed_cap uniontype issue
 
@@ -66,6 +69,7 @@ def test_args_init(
     datasets = []
     for d_name in unwrap_or(cliargs.datasets, []):
         datasets.append(get_dataset(d_name))
+    sequences = cliargs.sequences
     if cliargs.processors is not None:
         processors = []
         for p_fp in cliargs.processors:
@@ -87,6 +91,7 @@ def test_args_init(
     return args_cls(
         config=config,
         datasets=datasets,
+        sequences=sequences,
         processors=processors,
         force=force,
         output_dir=output_dir,

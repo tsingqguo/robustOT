@@ -22,6 +22,9 @@ class TModelResult(NamedTuple):
 
 
 class TModel(nn.Module):
+    neck: nn.Module | None
+    """only available when adjust is enabled"""
+
     _config: ModelConfig
     """feature of z-crop"""
 

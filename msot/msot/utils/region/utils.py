@@ -3,9 +3,8 @@ import numpy.typing as npt
 
 
 def _bbox_overlap_ratio(
-    bbox1: npt.NDArray[np.float64], bbox2: npt.NDArray[np.float64]
-) -> npt.NDArray[np.float64]:
-    bbox1 = np.transpose(bbox1)
+    bbox1: npt.NDArray[np.float_], bbox2: npt.NDArray[np.float_]
+) -> npt.NDArray[np.float_]:
 
     if bbox1.ndim == 1:
         bbox1 = bbox1[None, :]
@@ -25,8 +24,8 @@ def _bbox_overlap_ratio(
 
 
 def bbox_overlap_ratio(
-    bbox1: npt.NDArray[np.float64], bbox2: npt.NDArray[np.float64]
-) -> npt.NDArray[np.float64]:
+    bbox1: npt.NDArray[np.float_], bbox2: npt.NDArray[np.float_]
+) -> npt.NDArray[np.float_]:
     bbox1 = np.transpose(bbox1)
 
     if bbox1.ndim == 1:

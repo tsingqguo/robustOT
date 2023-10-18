@@ -19,7 +19,7 @@ class TrackerState(DS):
     z_feat: DC[torch.Tensor]
     """template feature"""
 
-    size: DC[npt.NDArray[np.float64]]
+    size: DC[npt.NDArray[np.float_]]
     """size in format of (width, height)"""
 
     center: DC[Point[float]]

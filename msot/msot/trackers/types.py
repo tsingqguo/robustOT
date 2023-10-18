@@ -1,7 +1,9 @@
 from dataclasses import dataclass
 from enum import Enum
-from typing import NamedTuple
+from typing import NamedTuple, TypeAlias
 
+import numpy as np
+import numpy.typing as npt
 import torch
 
 
@@ -29,3 +31,6 @@ class ScaledCrop:
     crop: torch.Tensor
 
     size: TrackSize
+
+
+FrameImage: TypeAlias = npt.NDArray[np.uint8]

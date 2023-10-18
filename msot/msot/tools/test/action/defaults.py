@@ -23,16 +23,15 @@ def action_init(params: ParamsFrameInit) -> None:
     # TODO: role
     p_out = params.input_process.execute(frame.img.get(TDRoles.TEST))
     if isinstance(p_out.input, np.ndarray):
-        scaled_z, _ = params.raw_tracker.init(
+        params.raw_tracker.init(
             frame.img.get(TDRoles.TEST),  # TODO: role
             frame.bbox.get(TDRoles.TEST),  # TODO: role
         )
     else:
-        scaled_z = p_out.input
-        params.raw_tracker.init_with_scaled_template(scaled_z.crop)
+        params.raw_tracker.init_with_scaled_template(p_out.input.crop)
 
     tracking = params.historical.set_cur_tracking(lambda T: T())
-    tracking.scaled_z.append(scaled_z, None)
+    tracking.scaled_z = p_out.scaled_crop_vert
 
 
 def action_skip(params: ParamsFrameSkip) -> None:

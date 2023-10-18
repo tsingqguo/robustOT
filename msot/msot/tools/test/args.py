@@ -11,6 +11,8 @@ class Args:
 
     datasets: list[Dataset]
 
+    sequences: list[str] | None
+
     processors: list[Processor] | None
 
     force: bool

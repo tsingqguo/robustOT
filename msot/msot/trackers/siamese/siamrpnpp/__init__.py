@@ -133,14 +133,25 @@ class SiamRPNTracker(SiameseTracker[TrackConfig, TrackerState, TrackResult]):
         return anchor
 
     @staticmethod
-    def get_sizes(cfg: TrackConfig, st: TrackerState) -> TrackSize:
-        w_z = st.size.val[0] + cfg.context_amount * np.sum(st.size.val)
-        h_z = st.size.val[1] + cfg.context_amount * np.sum(st.size.val)
-
+    def get_scale(
+        size: np.ndarray | tuple | list,
+        exemplar_size: int,
+        context_amount: float,
+    ) -> tuple[float, float]:
+        w_z = size[0] + context_amount * np.sum(size)
+        h_z = size[1] + context_amount * np.sum(size)
         z_size = np.sqrt(w_z * h_z)
-        x_size = z_size * (cfg.instance_size / cfg.exemplar_size)
 
-        scale = cfg.exemplar_size / z_size
+        return z_size, exemplar_size / z_size
+
+    @classmethod
+    def get_sizes(cls, cfg: TrackConfig, st: TrackerState) -> TrackSize:
+        z_size, scale = cls.get_scale(
+            st.size.get(),
+            cfg.exemplar_size,
+            cfg.context_amount,
+        )
+        x_size = z_size * (cfg.instance_size / cfg.exemplar_size)
 
         return TrackSize(
             z_size=round(z_size), x_size=round(x_size), scale=scale
@@ -153,7 +164,7 @@ class SiamRPNTracker(SiameseTracker[TrackConfig, TrackerState, TrackResult]):
         center_pos: Point[float],
         input_size: int,
         original_size: int,
-        avg_chans: npt.NDArray[np.float64],
+        avg_chans: npt.NDArray[np.float_],
         device: torch.device,
     ) -> torch.Tensor:
         im_patch, _, _, _ = cls._get_img(
@@ -315,7 +326,7 @@ class SiamRPNTracker(SiameseTracker[TrackConfig, TrackerState, TrackResult]):
 
         # update state
         st.center.update(Point(cbox.cx, cbox.cy))
-        st.size.update(np.array([cbox.w, cbox.h], dtype=np.float64))
+        st.size.update(np.array([cbox.w, cbox.h], dtype=np.float_))
         st.score.update(score)
 
         bbox = cbox.to_bbox()

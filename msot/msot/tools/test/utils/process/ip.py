@@ -141,11 +141,10 @@ class Processor(Generic[A, C]):
 
     def __str__(self) -> str:
         import json
-        from enum import Enum
 
         def config_deserialize(obj):
-            if isinstance(obj, Enum):
-                return obj.name
+            if hasattr(obj, "__str__"):
+                return str(obj)
             raise TypeError(f"unknown type: {obj.__class__.__name__}")
 
         return "{}: {} {}".format(
@@ -268,8 +267,8 @@ class Processor(Generic[A, C]):
 
 class _ProcessOutput(NamedTuple):
     input: Input
-    img_vert: _ImgVert
-    scaled_crop_vert: _ScaledCropVert
+    img_vert: FrameImageVert
+    scaled_crop_vert: ScaledCropVert
     processor_attrs: dict[str, ProceesorAttrs]
 
 
@@ -281,8 +280,8 @@ class InputProcess:
 
     @staticmethod
     def _append_to_vert(
-        img_vert: _ImgVert,
-        scaled_crop_vert: _ScaledCropVert,
+        img_vert: FrameImageVert,
+        scaled_crop_vert: ScaledCropVert,
         input: Input,
         p_info: _PInfo,
     ) -> None:

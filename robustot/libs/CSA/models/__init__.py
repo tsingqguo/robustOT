@@ -3,6 +3,8 @@ from copy import deepcopy
 
 from pix2pix.models.base_model import BaseModel
 
+from robustot.utils import suppress_print
+
 
 def get_test_model(options: Namespace, checkpoint_dir: str) -> BaseModel:
     opt = deepcopy(options)
@@ -16,7 +18,9 @@ def get_test_model(options: Namespace, checkpoint_dir: str) -> BaseModel:
         # TODO:
         raise RuntimeError(f"Unknown model: {opt.model}")
 
-    model = CSAModel(opt)
-    model.setup(opt)
+    with suppress_print(enabled=(hasattr(opt, "silent") and opt.silent)):
+        model = CSAModel(opt)
+        model.setup(opt)
+
     model.eval()
     return model

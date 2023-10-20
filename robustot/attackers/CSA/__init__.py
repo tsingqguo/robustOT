@@ -38,6 +38,7 @@ class CSAConfig(ProceesorConfig):
     attack_on: AttackOn
     attack_type: AttackType
     checkpoint_dir: str
+    silent: bool = False
     allow_access = Allow.TRACKER | Allow.TARGET
     valid_input = ValidInput.SCALED_CROP
     valid_output = ValidOutput.SCALED_CROP | ValidOutput.NONE
@@ -61,6 +62,7 @@ class CSAProcessor(Processor[CSAAttrs, CSAConfig]):
         options = get_test_options(
             self.config.attack_on,
             self.config.attack_type,
+            self.config.silent,
         )
         self.gan = get_test_model(options, self.config.checkpoint_dir)
 

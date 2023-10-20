@@ -89,7 +89,7 @@ class BaseOptions():
 
         # modify dataset-related parser options
         dataset_name = opt.dataset_mode
-        if self.attack_type == 'co':
+        if self.attack_type is AttackType.COOLING_ONLY:
             dataset_name = 'unaligned'
 
         dataset_option_setter = data.get_option_setter(dataset_name)
@@ -134,7 +134,6 @@ class BaseOptions():
             suffix = ('_' + opt.suffix.format(**vars(opt))) if opt.suffix != '' else ''
             opt.name = opt.name + suffix
         # self.print_options(opt)
-        print('[DEBUG] silent CSA')
 
         # set gpu ids
         str_ids = opt.gpu_ids.split(',')

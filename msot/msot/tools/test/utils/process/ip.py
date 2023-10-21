@@ -9,6 +9,7 @@ import numpy as np
 from msot.trackers.base import BaseTracker
 from msot.trackers.types import FrameImage, ScaledCrop
 from msot.utils.dataship import DataCTR as DC, DataShip as DS, VertDCAC
+from msot.utils.log import get_logger
 from msot.utils.region import Bbox
 from msot.utils.timer import Timer, TimerType
 
@@ -17,6 +18,7 @@ from ..roles import TDRoles
 if TYPE_CHECKING:
     from ..historical import Historical
 
+log = get_logger(__name__)
 
 Input: TypeAlias = ScaledCrop | FrameImage
 
@@ -256,11 +258,8 @@ class Processor(Generic[A, C]):
         if not isinstance(proc, Processor):
             raise TypeError("setup function must return `Processor`")
 
-        # TODO: log
-        print(
-            "[DEBUG] loading processor from file: {}\n\t{}".format(
-                fp, str(proc)
-            )
+        log.debug(
+            "loading processor from file: {}\n\t{}".format(fp, str(proc))
         )
         return proc
 

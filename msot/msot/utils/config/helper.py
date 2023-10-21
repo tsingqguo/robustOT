@@ -2,6 +2,10 @@ import pathlib
 from os import path
 from typing import Callable, Iterable, Type, TypeVar
 
+from msot.utils.log import get_logger
+
+log = get_logger(__name__)
+
 C = TypeVar("C")
 
 
@@ -17,7 +21,7 @@ def _get_sources_from_namespace(ns: dict) -> Iterable[str]:
 def from_file(
     config_fp: str, config_cls: Type[C], config: C | None = None
 ) -> C:
-    print("[DEBUG] loading config from file:", config_fp)
+    log.debug("loading config from file: {}".format(config_fp))
     if not path.exists(config_fp):
         raise FileNotFoundError(f"config file {config_fp} not found")
     if config is not None and not isinstance(config, config_cls):
@@ -47,7 +51,7 @@ def from_file_unsafe(config_fp: str):
     load unknown config from file
     source is disabled
     """
-    print("[DEBUG] loading config from file:", config_fp)
+    log.debug("loading config from file: {}".format(config_fp))
     if not path.exists(config_fp):
         raise FileNotFoundError(f"config file {config_fp} not found")
     assert pathlib.Path(config_fp).suffix[1:] == "py"

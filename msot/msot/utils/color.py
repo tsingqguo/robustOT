@@ -1,6 +1,7 @@
 from __future__ import annotations
 from enum import IntEnum
 from typing import Union
+from typing_extensions import Self
 
 
 class ColorType(IntEnum):
@@ -17,6 +18,14 @@ class Colors(IntEnum):
     Magenta = 5
     Cyan = 6
     White = 7
+    BrightBlack = 8
+    BrightRed = 9
+    BrightGreen = 10
+    BrightYellow = 11
+    BrightBlue = 12
+    BrightMagenta = 13
+    BrightCyan = 14
+    BrightWhite = 15
 
 
 class Styles(IntEnum):
@@ -40,12 +49,13 @@ def _get_ascii_escape_code(param: str) -> str:
 
 
 def _get_color_param(c: _C, ct: ColorType) -> str:
-    if isinstance(c, int) and c >= 0 and c < 16:
-        if ct is ColorType.Fg:
-            b = 30
+    if isinstance(c, int) and 0 <= c < 16:
+        if 8 <= c < 16:
+            offset = 90 if ct is ColorType.Fg else 100
+            c -= 8
         else:
-            b = 40
-        return str(b + c)
+            offset = 30 if ct is ColorType.Fg else 40
+        return str(offset + c)
     elif isinstance(c, int) and c >= 16 and c < 256:
         if ct is ColorType.Fg:
             return f"38;5;{c}"
@@ -97,23 +107,29 @@ class _Color:
             + self.text
         )
 
-    def fg(self, color: _C) -> None:
+    def fg(self, color: _C) -> Self:
         self._colorize(color, ColorType.Fg)
+        return self
 
-    def bg(self, color: _C) -> None:
+    def bg(self, color: _C) -> Self:
         self._colorize(color, ColorType.Bg)
+        return self
 
-    def bold(self) -> None:
+    def bold(self) -> Self:
         self._stylize(Styles.Bold)
+        return self
 
-    def dim(self) -> None:
+    def dim(self) -> Self:
         self._stylize(Styles.Dim)
+        return self
 
-    def underline(self) -> None:
+    def underline(self) -> Self:
         self._stylize(Styles.Underline)
+        return self
 
-    def blink(self) -> None:
+    def blink(self) -> Self:
         self._stylize(Styles.Blink)
+        return self
 
     def __str__(self) -> str:
         return self._reset(self.text)
@@ -124,35 +140,29 @@ Colorable = Union[_Color, str]
 
 def fg(target: Colorable, color: _C) -> _Color:
     target = _Color.cvt_colorable(target)
-    target.fg(color)
-    return target
+    return target.fg(color)
 
 
 def bg(target: Colorable, color: _C) -> _Color:
     target = _Color.cvt_colorable(target)
-    target.bg(color)
-    return target
+    return target.bg(color)
 
 
 def bold(target: Colorable) -> _Color:
     target = _Color.cvt_colorable(target)
-    target.bold()
-    return target
+    return target.bold()
 
 
 def dim(target: Colorable) -> _Color:
     target = _Color.cvt_colorable(target)
-    target.dim()
-    return target
+    return target.dim()
 
 
 def underline(target: Colorable) -> _Color:
     target = _Color.cvt_colorable(target)
-    target.underline()
-    return target
+    return target.underline()
 
 
 def blink(target: Colorable) -> _Color:
     target = _Color.cvt_colorable(target)
-    target.blink()
-    return target
+    return target.blink()

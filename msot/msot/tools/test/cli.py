@@ -5,10 +5,13 @@ from typed_cap import Cap
 
 from msot.data.datasets import VALID_DATASET_NAMES, get_dataset
 from msot.utils import unwrap_or
+from msot.utils.log import LogLevel, get_logger, set_level
 
 from .args import Args
 from .config import TestConfig
 from .utils.process import Processor
+
+log = get_logger(__name__)
 
 A = TypeVar("A", bound=Args)
 T = TypeVar("T")
@@ -51,12 +54,27 @@ class CliArgs:
     gpu_id: list[int] | None
     """gpu id to use"""
 
+    # @alias=v
+    verbose: bool = False
+
 
 def args_parse(
     cliargs: Type[T], argv: list[str] = sys.argv[1:]
 ) -> tuple[list[str], T]:
     cap = Cap(cliargs)
     parsed = cap.parse(argv)
+    v_cnt = parsed.count("verbose")
+    log_level: LogLevel
+    if v_cnt == 0:
+        log_level = LogLevel.ERROR
+    elif v_cnt == 1:
+        log_level = LogLevel.WARNING
+    elif v_cnt == 2:
+        log_level = LogLevel.INFO
+    else:
+        log_level = LogLevel.DEBUG
+    set_level(log_level)
+    log.debug(f"log level has been set to {log_level.value}")
     return parsed.argv, parsed.args
 
 

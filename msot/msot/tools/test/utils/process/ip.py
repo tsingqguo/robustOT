@@ -205,6 +205,11 @@ class Processor(Generic[A, C]):
                 raise RuntimeError(
                     f"{self.__class__.__name__} does not allow scaled crop as output"
                 )
+            if out.crop.requires_grad and out.crop.is_leaf:
+                log.warning(
+                    f"processor {self.name}'s output scaled crop is still in gradient computation and has not been detached"
+                )
+
         elif out is None:
             if not ValidOutput.NONE in self.config.valid_output:
                 raise RuntimeError(

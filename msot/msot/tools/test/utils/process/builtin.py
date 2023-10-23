@@ -1,5 +1,5 @@
-from dataclasses import dataclass
-from enum import Flag, auto
+from dataclasses import dataclass, field
+from enum import IntFlag
 
 from .ip import (
     Allow,
@@ -35,16 +35,20 @@ class DefaultCropAttrs(ProceesorAttrs):
     allow_access = Allow.TRACKER | Allow.TARGET
 
 
-class DefaultCropOn(Flag):
-    TEMPLATE = auto()
-    SEARCH = auto()
+class DefaultCropOn(IntFlag):
+    TEMPLATE = 1 << 0
+    SEARCH = 1 << 1
 
 
-@dataclass
+@dataclass(kw_only=True, slots=True)
 class DefaultCropConfig(ProceesorConfig):
-    allow_access = Allow.TRACKER | Allow.TARGET
-    crop_on = DefaultCropOn.TEMPLATE | DefaultCropOn.SEARCH
-    valid_output = ValidOutput.NONE | ValidOutput.SCALED_CROP
+    allow_access: Allow = field(default=Allow.TRACKER | Allow.TARGET)
+    crop_on: DefaultCropOn = field(
+        default=DefaultCropOn.TEMPLATE | DefaultCropOn.SEARCH
+    )
+    valid_output: ValidOutput = field(
+        default=ValidOutput.NONE | ValidOutput.SCALED_CROP
+    )
 
 
 class DefaultCrop(Processor[DefaultCropAttrs, DefaultCropConfig]):

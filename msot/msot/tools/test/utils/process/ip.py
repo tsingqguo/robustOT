@@ -1,7 +1,7 @@
 from __future__ import annotations
 from copy import deepcopy
 from dataclasses import dataclass, field
-from enum import Flag, auto
+from enum import IntFlag
 from typing import Generic, NamedTuple, Type, TypeAlias, TypeVar, TYPE_CHECKING
 
 import numpy as np
@@ -32,24 +32,24 @@ A = TypeVar("A", bound="ProceesorAttrs")
 C = TypeVar("C", bound="ProceesorConfig")
 
 
-class Allow(Flag):
+class Allow(IntFlag):
     """allow input process access to input data"""
 
-    NONE = auto()
-    TRACKER = auto()
-    HISTORICAL = auto()
-    TARGET = auto()
+    NONE = 0
+    TRACKER = 1 << 0
+    HISTORICAL = 1 << 1
+    TARGET = 1 << 2
 
 
-class ValidInput(Flag):
-    FRAME_IMAGE = auto()
-    SCALED_CROP = auto()
+class ValidInput(IntFlag):
+    FRAME_IMAGE = 1 << 0
+    SCALED_CROP = 1 << 1
 
 
-class ValidOutput(Flag):
-    NONE = auto()
-    FRAME_IMAGE = auto()
-    SCALED_CROP = auto()
+class ValidOutput(IntFlag):
+    NONE = 0
+    FRAME_IMAGE = 1 << 0
+    SCALED_CROP = 1 << 1
 
 
 @dataclass
@@ -65,14 +65,19 @@ class ProceesorAttrs(DS):
     ...
 
 
-@dataclass(kw_only=True)
+@dataclass(kw_only=True, slots=True)
 class ProceesorConfig:
-    allow_access = Allow.NONE
+    allow_access: Allow = field(default=Allow.NONE)
     timer: TimerType | None = None
-    valid_input = ValidInput.FRAME_IMAGE | ValidInput.SCALED_CROP
-    valid_output = (
-        ValidOutput.NONE | ValidOutput.FRAME_IMAGE | ValidOutput.SCALED_CROP
+    valid_input: ValidInput = field(
+        default=ValidInput.FRAME_IMAGE | ValidInput.SCALED_CROP
     )
+    valid_output: ValidOutput = field(
+        default=ValidOutput.NONE
+        | ValidOutput.FRAME_IMAGE
+        | ValidOutput.SCALED_CROP
+    )
+
 
 
 @dataclass
@@ -205,9 +210,12 @@ class Processor(Generic[A, C]):
                 raise RuntimeError(
                     f"{self.__class__.__name__} does not allow scaled crop as output"
                 )
-            if out.crop.requires_grad and out.crop.is_leaf:
+            # if out.crop.requires_grad and not out.crop.is_leaf: # TODO: TBD
+            if out.crop.requires_grad:
                 log.warning(
-                    f"processor {self.name}'s output scaled crop is still in gradient computation and has not been detached"
+                    "processor {}'s output scaled crop has requires_grad==True".format(
+                        self.__class__.__name__
+                    )
                 )
 
         elif out is None:
@@ -263,9 +271,7 @@ class Processor(Generic[A, C]):
         if not isinstance(proc, Processor):
             raise TypeError("setup function must return `Processor`")
 
-        log.debug(
-            "loading processor from file: {}\n\t{}".format(fp, str(proc))
-        )
+        log.info("loading processor from file: {}\n\t{}".format(fp, str(proc)))
         return proc
 
 

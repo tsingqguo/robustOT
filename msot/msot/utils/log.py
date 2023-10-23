@@ -34,7 +34,7 @@ class MSOTLogFormatter(logging.Formatter):
             record.levelname, self.COLORS.get(record.levelname, Colors.White)
         ).bold()
         asctime = fg(record.asctime, Colors.White)
-        return f"{asctime} {level}: {record.getMessage()}"
+        return f"\r{asctime} {level}: {record.getMessage()}"
 
 
 class MSOTLogHandler(logging.StreamHandler):

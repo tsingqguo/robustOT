@@ -67,8 +67,9 @@ def action_finish(params: ParamsFrameFinish) -> None:
     results = result.to_list()
     analysis = analysis.to_list()
 
-    params.result_utils.save_results_default(
-        sequence_name=params.sequence_info.name,
-        results=results,
-        analysis=analysis,
-    )
+    if params.results_handler is not None:
+        params.results_handler.save_results_default(
+            sequence_name=params.sequence_info.name,
+            results=results,
+            analysis=analysis,
+        )

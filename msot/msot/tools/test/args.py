@@ -18,7 +18,7 @@ class Args:
     force: bool
     """overwrite existing results"""
 
-    output_dir: str
+    output_dir: str | None
     """root directory for results"""
 
     result_timeout_thld: int

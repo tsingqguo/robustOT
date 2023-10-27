@@ -1,7 +1,12 @@
 from __future__ import annotations
 from enum import IntEnum
-from typing import Union
+from typing import Protocol
 from typing_extensions import Self
+
+
+class _ToStr(Protocol):
+    def __str__(self) -> str:
+        ...
 
 
 class ColorType(IntEnum):
@@ -38,7 +43,7 @@ class Styles(IntEnum):
 _C = int
 
 
-def _get_text(t: Union[_Color, str]) -> str:
+def _get_text(t: _Color | str) -> str:
     if isinstance(t, _Color):
         t = t.text
     return t
@@ -88,6 +93,8 @@ class _Color:
     def cvt_colorable(target: Colorable) -> _Color:
         if isinstance(target, _Color):
             target = target
+        elif hasattr(target, "__str__"):
+            target = _Color(str(target))
         elif isinstance(target, str):
             target = _Color(target)
         else:
@@ -95,7 +102,7 @@ class _Color:
         return target
 
     @staticmethod
-    def _reset(t: Union[_Color, str]) -> str:
+    def _reset(t: _Color | str) -> str:
         return _get_text(t) + "\x1b[0m"
 
     def _stylize(self, style: Styles) -> None:
@@ -135,7 +142,7 @@ class _Color:
         return self._reset(self.text)
 
 
-Colorable = Union[_Color, str]
+Colorable = _Color | _ToStr | str
 
 
 def fg(target: Colorable, color: _C) -> _Color:

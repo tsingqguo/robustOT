@@ -47,7 +47,7 @@ class ParamsFramePost(ParamsFrame[TC, TS, TR]):
 
 @dataclass
 class ParamsFrameFinish(ParamsFrame[TC, TS, TR]):
-    result_utils: TestResult
+    results_handler: TestResult | None
 
 
 TestActionInit = Callable[[ParamsFrameInit], None]

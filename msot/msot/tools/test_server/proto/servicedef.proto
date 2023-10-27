@@ -1,0 +1,23 @@
+syntax = "proto3";
+
+service MSOTTestService {
+    rpc init (FeedFrameRequest) returns (FeedFrameResponse) {}
+    rpc track (FeedFrameRequest) returns (FeedFrameResponse) {}
+    rpc finish (FinishRequest) returns (FinishResponse) {}
+}
+
+message FeedFrameRequest {
+    string id = 1;
+    bytes frame = 2;
+    bytes region = 3;
+}
+
+message FeedFrameResponse {
+    bytes predict = 2;
+}
+
+message FinishRequest {
+    string id = 1;
+}
+
+message FinishResponse {}

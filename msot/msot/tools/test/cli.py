@@ -37,7 +37,7 @@ class CliArgs:
     """overwrite existing results"""
 
     # @alias=o
-    output_dir: str = "results"
+    output_dir: str | None
     """path to output directory"""
 
     tracker_name: str | None

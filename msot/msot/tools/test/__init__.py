@@ -1,30 +1,23 @@
 from __future__ import annotations
-import os
-import time
-from dataclasses import dataclass, field
 from enum import Enum, Flag
-from typing import Generic, Type, TypeVar
+from typing import Generic, Type, TypeAlias, TypeVar
 
 import numpy as np
 import numpy.typing as npt
 import torch
 from tqdm import tqdm
 
-from msot.data.datasets import get_dataset
 from msot.libs.potp_test.libs.dataset import Dataset
 from msot.libs.potp_test.libs.video import Video
 from msot.libs.pysot.utils.bbox import get_axis_aligned_bbox
-from msot.models import TModel, ModelConfig, TModelResult
+from msot.models import TModel
 from msot.trackers.base import (
     BaseTracker,
     TrackConfig,
     TrackerState,
     TrackResult,
 )
-from msot.utils.dataship import DataCTR as DC, DataShip as DS
-from msot.utils.option import NONE, Option, Some
 from msot.utils.region import Bbox
-from msot.utils.timer import Timer
 
 from .action import (
     ParamsFrameFinish,
@@ -50,7 +43,9 @@ from .utils.process import (
     InputProcess,
     ProcessSearch,
     ProcessTemplate,
-    Processor,
+    Processor as _Processor,
+    ProceesorAttrs,
+    ProceesorConfig,
 )
 from .utils.historical import Historical
 from .utils.result import TestResult
@@ -67,6 +62,8 @@ VA = TypeVar("VA", bound=Flag)
 # S = TypeVar("S", bound="Shared")
 # class Shared(DS):
 #     ...
+
+Processor: TypeAlias = _Processor[ProceesorAttrs, ProceesorConfig]
 
 
 class TrackActionType(Enum):
@@ -88,7 +85,7 @@ class TestAttributes(Generic[A]):
 
     historical: Historical
     input_process: InputProcess
-    result_utils: TestResult
+    results_handler: TestResult | None
     sequence_info: SequenceInfo
 
     def __init__(
@@ -129,13 +126,16 @@ class TestAttributes(Generic[A]):
         else:
             variant_name = args.variant_name
 
-        self.result_utils = TestResult.create_file_based(
-            args.output_dir,
-            d_name,
-            args.config.tracker.name,
-            variant_name + args.variant_suffix,
-            style=None,
-        )
+        if args.output_dir is None:
+            self.results_handler = None
+        else:
+            self.results_handler = TestResult.create_file_based(
+                args.output_dir,
+                d_name,
+                args.config.tracker.name,
+                variant_name + args.variant_suffix,
+                style=None,
+            )
 
 
 # class Test(Generic[TC, TS, TR]):
@@ -214,11 +214,14 @@ class TestServer(Generic[A, TA]):
                 **(test_attr_params or {}),
             }
         )
-        return self._attrs.result_utils.try_init(
-            video.name if video is not None else "unknown_seq",
-            self.test.args.result_timeout_thld,
-            self.test.args.force,
-        )
+        if self._attrs.results_handler is not None:
+            return self._attrs.results_handler.try_init(
+                video.name if video is not None else "unknown_seq",
+                self.test.args.result_timeout_thld,
+                self.test.args.force,
+            )
+        else:
+            return True
 
     def next(self, frame: npt.NDArray[np.uint8], gt):
         if self._attrs is None:
@@ -371,9 +374,10 @@ class TestServer(Generic[A, TA]):
             raw_tracker=self.test.raw_tracker,
             historical=self._attrs.historical,
             sequence_info=self._attrs.sequence_info,
-            result_utils=self._attrs.result_utils,
+            results_handler=self._attrs.results_handler,
         )
         self.test.action_finish(params)
+        self.reset()
 
     def reset(self):
         self._attrs = None

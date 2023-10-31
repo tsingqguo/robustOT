@@ -13,11 +13,6 @@ T = TypeVar("T", bound=ValidType)
 
 
 @dataclass
-class Vertex(Point[T]):
-    ...
-
-
-@dataclass
 class Bounds(Generic[T]):
     top: T
     bottom: T
@@ -54,7 +49,13 @@ class Bounds(Generic[T]):
 
 
 class Polygon(Generic[T]):
-    _vertices: list[Vertex[T]]
+    _vertices: list[Point[T]]
+
+    def __init__(self, vertices: list[Point[T]]) -> None:
+        self._vertices = vertices
+
+    def __str__(self) -> str:
+        return f"Polygon {{ {self.vertices} }}"
 
     @property
     def vertices(self):
@@ -111,15 +112,15 @@ class Polygon(Generic[T]):
             np.sum(mask1) + np.sum(mask2) - mask_intersect
         )
 
-    def offset_vertices(self, x, y) -> list[Vertex[int]]:
+    def offset_vertices(self, x, y) -> list[Point[int]]:
         vertices = []
         for v in self.vertices:
-            vertices.append(Vertex(int(v.x + x), int(v.y + y)))
+            vertices.append(Point(int(v.x + x), int(v.y + y)))
 
         return vertices
 
     @staticmethod
-    def rasterize(vertices: list[Vertex[T]], width: int, height: int):
+    def rasterize(vertices: list[Point[T]], width: int, height: int):
         mask = np.zeros((height, width), dtype=np.uint8)
         cv2.fillPoly(
             mask,

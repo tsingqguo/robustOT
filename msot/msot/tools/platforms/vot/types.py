@@ -3,8 +3,10 @@ from typing import Literal, NamedTuple, TypeAlias
 
 import trax
 
-VALID_CHANNEL_NAMES: TypeAlias = Literal["rgbd", "rgbt", "ir"]
-VALID_CHANNEL_TYPES: TypeAlias = Literal["color", "depth", "ir"]
+TraxStatus: TypeAlias = Literal["initialize", "frame", "quit"]
+
+TraxChannelNames: TypeAlias = Literal["rgbd", "rgbt", "ir"]
+TraxChannelTypes: TypeAlias = Literal["color", "depth", "ir"]
 
 
 class TraxImageFormat(Enum):
@@ -22,7 +24,7 @@ class TraxRegionFormat(Enum):
 
 
 class TraxServerRequest(NamedTuple):
-    type: Literal["initialize", "frame"]
-    image: dict[VALID_CHANNEL_TYPES, trax.image.Image]
+    type: TraxStatus
+    image: dict[TraxChannelTypes, trax.image.Image]
     objects: list[tuple[trax.Region, trax.Properties]] | None
     properties: trax.Properties

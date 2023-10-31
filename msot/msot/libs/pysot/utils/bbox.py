@@ -23,5 +23,5 @@ def get_axis_aligned_bbox(
         h = s * (y2 - y1) + 1
     else:
         bbox = Bbox(*region)
-        cx, cy, w, h = bbox.unpack2center()
+        cx, cy, w, h = bbox.to_center().unpack()
     return Center(cx, cy, w, h)

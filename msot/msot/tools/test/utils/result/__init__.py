@@ -274,7 +274,7 @@ class _TRFile(TestResult):
                     if overlap > 0:
                         pred.append(
                             ",".join(
-                                map(lambda a: f"{a:.4f}", bbox.unpack2bbox())
+                                map(lambda a: f"{a:.4f}", bbox.unpack())
                             )
                         )
                     else:
@@ -284,7 +284,7 @@ class _TRFile(TestResult):
                 else:
                     pred.append(str(ReservedResults.INIT.value))
             else:
-                pred.append(",".join(map(str, map(int, bbox.unpack2bbox()))))
+                pred.append(",".join(map(str, map(int, bbox.unpack()))))
 
         with open(
             os.path.join(

@@ -93,7 +93,7 @@ class Anchors:
         x1, y1, x2, y2 = map(
             lambda x: x.reshape(self.anchor_num, 1, 1), [x1, y1, x2, y2]
         )
-        cx, cy, w, h = Corner(x1, y1, x2, y2).unpack2center()
+        cx, cy, w, h = Corner(x1, y1, x2, y2).to_center().unpack()
 
         disp_x = np.arange(0, size).reshape(1, 1, -1) * self.config.stride
         disp_y = np.arange(0, size).reshape(1, -1, 1) * self.config.stride
@@ -104,7 +104,7 @@ class Anchors:
         # broadcast
         zero = np.zeros((self.anchor_num, size, size), dtype=np.float32)
         cx, cy, w, h = map(lambda x: x + zero, [cx, cy, w, h])
-        x1, y1, x2, y2 = Center(cx, cy, w, h).unpack2corner()
+        x1, y1, x2, y2 = Center(cx, cy, w, h).to_corner().unpack()
 
         self.all_anchors = (
             np.stack([x1, y1, x2, y2]).astype(np.float32),

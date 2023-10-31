@@ -15,7 +15,7 @@ class Rectangle:
 
     @staticmethod
     def msot2trax(rect: Bbox) -> trax.Rectangle:
-        return trax.Rectangle.create(*rect.unpack2bbox())
+        return trax.Rectangle.create(*rect.unpack())
 
 
 def msot2trax(region: Region | None) -> trax.Region:

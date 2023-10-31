@@ -1,14 +1,13 @@
 from __future__ import annotations
-from typing import Any, Callable, Type, TypeVar
+from typing import Any, Callable, Generic, Type, TypeVar
 
 from .point import ValidType, Point
-from .polygon import Polygon, Vertex
 
 T = TypeVar("T", bound=ValidType)
 _BD = Any
 
 
-class Box(Polygon[T]):
+class Box(Generic[T]):
     _dt: Type[T] | None
 
     def __init__(self, dtype: Type[T] | None = None) -> None:
@@ -51,20 +50,20 @@ class Box(Polygon[T]):
         raise NotImplementedError
 
     @property
-    def lt(self) -> Vertex[T]:
-        return Vertex(self.x1, self.y1)
+    def lt(self) -> Point[T]:
+        return Point(self.x1, self.y1)
 
     @property
-    def rt(self) -> Vertex[T]:
-        return Vertex(self.x2, self.y1)
+    def rt(self) -> Point[T]:
+        return Point(self.x2, self.y1)
 
     @property
-    def lb(self) -> Vertex[T]:
-        return Vertex(self.x1, self.y2)
+    def lb(self) -> Point[T]:
+        return Point(self.x1, self.y2)
 
     @property
-    def rb(self) -> Vertex[T]:
-        return Vertex(self.x2, self.y2)
+    def rb(self) -> Point[T]:
+        return Point(self.x2, self.y2)
 
     @property
     def vertices(self):
@@ -96,29 +95,14 @@ class Box(Polygon[T]):
         box_b_area = (float(other.w) + 1) * (float(other.h) + 1)
         return inter_area / float(box_a_area + box_b_area - inter_area)
 
-    def unpack2bbox(self) -> tuple[T, T, T, T]:
-        """
-        unpack to (x1, y1, w, h)
-        """
-        return self.x1, self.y1, self.w, self.h
+    def unpack(self):
+        raise NotImplementedError
 
     def to_bbox(self) -> Bbox[T]:
         return Bbox[T](self.x1, self.y1, self.w, self.h, self._dt)  # type: ignore
 
-    def unpack2center(self) -> tuple[T, T, T, T]:
-        """
-        unpack to (cx, cy, w, h)
-        """
-        return self.cx, self.cy, self.w, self.h
-
     def to_center(self) -> Center[T]:
         return Center[T](self.cx, self.cy, self.w, self.h, self._dt)  # type: ignore
-
-    def unpack2corner(self) -> tuple[T, T, T, T]:
-        """
-        unpack to (x1, y1, x2, y2)
-        """
-        return self.x1, self.y1, self.x2, self.y2
 
     def to_corner(self) -> Corner[T]:
         return Corner[T](self.x1, self.y1, self.x2, self.y2, self._dt)  # type: ignore
@@ -185,6 +169,9 @@ class Corner(Box[T]):
     def w(self) -> T:
         return self._cvt(self._dt, self._x2 - self._x1)
 
+    def unpack(self) -> tuple[T, T, T, T]:
+        return self.x1, self.y1, self.x2, self.y2
+
 
 class Bbox(Box[T]):
     _x1: _BD
@@ -241,6 +228,9 @@ class Bbox(Box[T]):
     def w(self) -> T:
         return self._cvt(self._dt, self._w)
 
+    def unpack(self) -> tuple[T, T, T, T]:
+        return self.x1, self.y1, self.w, self.h
+
 
 class Center(Box[T]):
     _cx: _BD
@@ -296,6 +286,9 @@ class Center(Box[T]):
     @property
     def w(self) -> T:
         return self._cvt(self._dt, self._w)
+
+    def unpack(self) -> tuple[T, T, T, T]:
+        return self.cx, self.cy, self.w, self.h
 
     def __sub__(self, other: Point) -> Center[T]:
         return Center[T](

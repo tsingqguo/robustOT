@@ -17,7 +17,8 @@ from msot.trackers.base import (
     TrackerState,
     TrackResult,
 )
-from msot.utils.region import Bbox
+from msot.utils.region import Box, Bbox, Polygon, Region
+from msot.utils.region.helpers import calculate_overlap_ratio
 
 from .action import (
     ParamsFrameFinish,
@@ -223,23 +224,15 @@ class TestServer(Generic[A, TA]):
         else:
             return True
 
-    def next(self, frame: npt.NDArray[np.uint8], gt):
+    def next(self, frame: npt.NDArray[np.uint8], gt: Region | None):
         if self._attrs is None:
             raise RuntimeError("test server not initialized")
 
         self._attrs.historical.next()
         idx = len(self._attrs.historical) - 1
 
-        ct = get_axis_aligned_bbox(np.array(gt))
-        bbox = Bbox(
-            ct.cx - (ct.w - 1) / 2,
-            ct.cy - (ct.h - 1) / 2,
-            ct.w,
-            ct.h,
-        )
-
-        _frame = self._attrs.historical.set_cur_frame(
-            lambda F: F(frame, bbox, ct),
+        cur_frame = self._attrs.historical.set_cur_frame(
+            lambda F: F(frame, gt),
         )
 
         if idx == 0:
@@ -255,6 +248,7 @@ class TestServer(Generic[A, TA]):
             tat = TrackActionType.TRACK
 
         if tat is TrackActionType.INIT:
+            assert gt is not None
             # TODO: group-ip
             group_tracker = self.test.raw_tracker.fork()
             group_tracker.state_reset()  # IMPORTANT: for init
@@ -263,7 +257,7 @@ class TestServer(Generic[A, TA]):
                 group_tracker,
                 self._attrs.historical,
                 ProcessTemplate(
-                    self.test.raw_tracker.config.exemplar_size, bbox
+                    self.test.raw_tracker.config.exemplar_size, gt
                 ),
             )
             params = ParamsFrameInit(
@@ -274,8 +268,15 @@ class TestServer(Generic[A, TA]):
             )
             self.test.action_init(params)
             self.test.raw_tracker.absorb(group_tracker)  # IMPORTANT:
+
+            if isinstance(gt, Box):
+                pred = gt.to_bbox()
+            elif isinstance(gt, Polygon):
+                pred = gt.to_corner().to_bbox()
+            else:
+                raise NotImplementedError
             self._attrs.historical.set_cur_result(
-                lambda R: R(self.test.raw_tracker.state, bbox, None),
+                lambda R: R(self.test.raw_tracker.state, pred, None),
             )
 
         if tat is TrackActionType.SKIP:
@@ -322,10 +323,14 @@ class TestServer(Generic[A, TA]):
                 ),
             )
 
-        overlap = self._attrs.historical.cur.result.unwrap().pred.val.get_overlap_ratio(
-            self._attrs.historical.cur.frame.unwrap().bbox.get(TDRoles.TEST)
-        )  # TODO: ignore skipped / init;
-        # TODO: collapsable variables
+        if not cur_frame.gt.is_unbound():
+            pred = self._attrs.historical.cur.result.unwrap().pred.get()
+            overlap = calculate_overlap_ratio(
+                pred, cur_frame.gt.get(TDRoles.TEST)
+            )
+            # TODO: collapsable variables
+        else:
+            overlap = None
 
         if self._attrs.historical.cur.tracking.is_some():
             process_costs = list(
@@ -349,6 +354,7 @@ class TestServer(Generic[A, TA]):
         if (
             tat is TrackActionType.TRACK
             and self._attrs.restart_overlap_thld is not None
+            and overlap is not None
             and overlap <= self._attrs.restart_overlap_thld
         ):
             if self._attrs.restart_skips is None:
@@ -410,6 +416,14 @@ def run_video(
     )
 
     for _, (img, gt) in enumerate(pbar):
-        server.next(img, gt)
+        ct = get_axis_aligned_bbox(np.array(gt))
+        bbox = Bbox(
+            ct.cx - (ct.w - 1) / 2,
+            ct.cy - (ct.h - 1) / 2,
+            ct.w,
+            ct.h,
+        )
+
+        server.next(img, bbox)
 
     server.finish()

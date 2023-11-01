@@ -1,69 +1,72 @@
 from __future__ import annotations
-from typing import Any, Callable, Generic, Type, TypeVar
+from typing import TYPE_CHECKING
 
-from .point import ValidType, Point
+import numpy as np
+import numpy.typing as npt
 
-T = TypeVar("T", bound=ValidType)
-_BD = Any
+from .point import Point
+
+if TYPE_CHECKING:
+    from .polygon import Polygon
 
 
-class Box(Generic[T]):
-    _dt: Type[T] | None
+class Box:
+    _data: npt.NDArray[np.float_]
 
-    def __init__(self, dtype: Type[T] | None = None) -> None:
-        self._dt = dtype
+    def __init__(self) -> None:
+        ...
 
     @property
-    def x1(self) -> T:
+    def _x1(self) -> np.float_:
         raise NotImplementedError
 
     @property
-    def x2(self) -> T:
+    def _x2(self) -> np.float_:
         raise NotImplementedError
 
     @property
-    def y1(self) -> T:
+    def _y1(self) -> np.float_:
         raise NotImplementedError
 
     @property
-    def y2(self) -> T:
+    def _y2(self) -> np.float_:
         raise NotImplementedError
 
     @property
-    def cx(self) -> T:
+    def _cx(self) -> np.float_:
         raise NotImplementedError
 
     @property
-    def cy(self) -> T:
+    def _cy(self) -> np.float_:
         raise NotImplementedError
 
     @property
-    def center(self) -> Point[T]:
-        return Point(self.cx, self.cy)
+    def center(self) -> Point:
+        return Point(self._cx, self._cy)
 
     @property
-    def h(self) -> T:
+    def _h(self) -> np.float_:
         raise NotImplementedError
 
     @property
-    def w(self) -> T:
+    def _w(self) -> np.float_:
         raise NotImplementedError
 
     @property
-    def lt(self) -> Point[T]:
-        return Point(self.x1, self.y1)
+    def lt(self) -> Point:
+        return Point(self._x1, self._y1)
 
     @property
-    def rt(self) -> Point[T]:
-        return Point(self.x2, self.y1)
+    def rt(self) -> Point:
+        return Point(self._x2, self._y1)
 
     @property
-    def lb(self) -> Point[T]:
-        return Point(self.x1, self.y2)
+    def lb(self) -> Point:
+        return Point(self._x1, self._y2)
 
     @property
-    def rb(self) -> Point[T]:
-        return Point(self.x2, self.y2)
+    def rb(self) -> Point:
+        return Point(self._x2, self._y2)
 
     @property
     def vertices(self):
@@ -75,235 +78,237 @@ class Box(Generic[T]):
         ]
 
     @property
+    def size(self) -> npt.NDArray[np.float_]:
+        return np.array([self._w, self._h])
+
+    @property
     def area(self) -> float:
-        return float(self.w * self.h)
+        return float(self._w * self._h)
 
     def get_overlap_ratio(self, other: Box) -> float:
         # TODO: bounds impl
-        x_a = max(float(self.x1), float(other.x1))
-        y_a = max(float(self.y1), float(other.y1))
+        x_a = max(float(self._x1), float(other._x1))
+        y_a = max(float(self._y1), float(other._y1))
         x_b = min(
-            float(self.x1) + float(self.w),
-            float(other.x1 + float(other.w)),
+            float(self._x1) + float(self._w),
+            float(other._x1 + float(other._w)),
         )
         y_b = min(
-            float(self.y1) + float(self.h),
-            float(other.y1 + float(other.h)),
+            float(self._y1) + float(self._h),
+            float(other._y1 + float(other._h)),
         )
         inter_area = max(0, x_b - x_a + 1) * max(0, y_b - y_a + 1)
-        box_a_area = (float(self.w) + 1) * (float(self.h) + 1)
-        box_b_area = (float(other.w) + 1) * (float(other.h) + 1)
+        box_a_area = (float(self._w) + 1) * (float(self._h) + 1)
+        box_b_area = (float(other._w) + 1) * (float(other._h) + 1)
         return inter_area / float(box_a_area + box_b_area - inter_area)
+
+    def __array__(self) -> npt.NDArray[np.float_]:
+        return self._data
+
+    def numpy(self) -> npt.NDArray[np.float_]:
+        return self._data
 
     def unpack(self):
         raise NotImplementedError
 
-    def to_bbox(self) -> Bbox[T]:
-        return Bbox[T](self.x1, self.y1, self.w, self.h, self._dt)  # type: ignore
+    def to_bbox(self) -> Bbox:
+        return Bbox(self._x1, self._y1, self._w, self._h)
 
-    def to_center(self) -> Center[T]:
-        return Center[T](self.cx, self.cy, self.w, self.h, self._dt)  # type: ignore
+    def to_center(self) -> Center:
+        return Center(self._cx, self._cy, self._w, self._h)
 
-    def to_corner(self) -> Corner[T]:
-        return Corner[T](self.x1, self.y1, self.x2, self.y2, self._dt)  # type: ignore
+    def to_corner(self) -> Corner:
+        return Corner(self._x1, self._y1, self._x2, self._y2)
 
-    @staticmethod
-    def _cvt(t: Callable[[Any], T] | None, val) -> T:
-        if t is None:
-            return val
-        return t(val)
+    def to_polygon(self) -> Polygon:
+        from .polygon import Polygon
+
+        return Polygon(self.vertices)
 
 
-class Corner(Box[T]):
-    _x1: _BD
-    _y1: _BD
-    _x2: _BD
-    _y2: _BD
-
-    def __init__(
-        self,
-        x1: _BD,
-        y1: _BD,
-        x2: _BD,
-        y2: _BD,
-        dtype: Type[T] = float,
-    ) -> None:
-        super().__init__(dtype)
-        self._x1 = x1
-        self._y1 = y1
-        self._x2 = x2
-        self._y2 = y2
+class Corner(Box):
+    def __init__(self, x1, y1, x2, y2) -> None:
+        super().__init__()
+        self._data = np.array([x1, y1, x2, y2], dtype=np.float_)
 
     def __str__(self) -> str:
-        return f"Corner {{ x1: {self.x1}, y1: {self.x2}, x2: {self.y1}, y2: {self.y2} }}"
+        return f"Corner {{ x1: {self._x1}, y1: {self._x2}, x2: {self._y1}, y2: {self._y2} }}"
 
     @property
-    def x1(self) -> T:
-        return self._cvt(self._dt, self._x1)
+    def _x1(self) -> np.float_:
+        return self._data[0]
 
     @property
-    def x2(self) -> T:
-        return self._cvt(self._dt, self._x2)
+    def _x2(self) -> np.float_:
+        return self._data[2]
 
     @property
-    def y1(self) -> T:
-        return self._cvt(self._dt, self._y1)
+    def _y1(self) -> np.float_:
+        return self._data[1]
 
     @property
-    def y2(self) -> T:
-        return self._cvt(self._dt, self._y2)
+    def _y2(self) -> np.float_:
+        return self._data[3]
 
     @property
-    def cx(self) -> T:
-        return self._cvt(self._dt, (self._x1 + self._x2) / 2)
+    def _cx(self) -> np.float_:
+        return (self._x1 + self._x2) / 2
 
     @property
-    def cy(self) -> T:
-        return self._cvt(self._dt, (self._y1 + self._y2) / 2)
+    def _cy(self) -> np.float_:
+        return (self._y1 + self._y2) / 2
 
     @property
-    def h(self) -> T:
-        return self._cvt(self._dt, self._y2 - self._y1)
+    def _h(self) -> np.float_:
+        return self._y2 - self._y1
 
     @property
-    def w(self) -> T:
-        return self._cvt(self._dt, self._x2 - self._x1)
+    def _w(self) -> np.float_:
+        return self._x2 - self._x1
 
-    def unpack(self) -> tuple[T, T, T, T]:
+    @property
+    def x1(self) -> float:
+        return float(self._x1)
+
+    @property
+    def x2(self) -> float:
+        return float(self._x2)
+
+    @property
+    def y1(self) -> float:
+        return float(self._y1)
+
+    @property
+    def y2(self) -> float:
+        return float(self._y2)
+
+    def unpack(self) -> tuple[float, float, float, float]:
         return self.x1, self.y1, self.x2, self.y2
 
 
-class Bbox(Box[T]):
-    _x1: _BD
-    _y1: _BD
-    _w: _BD
-    _h: _BD
-
-    def __init__(
-        self,
-        x1: _BD,
-        y1: _BD,
-        w: _BD,
-        h: _BD,
-        dtype: Type[T] = float,
-    ) -> None:
-        super().__init__(dtype)
-        self._x1 = x1
-        self._y1 = y1
-        self._w = w
-        self._h = h
+class Bbox(Box):
+    def __init__(self, x1, y1, w, h) -> None:
+        super().__init__()
+        self._data = np.array([x1, y1, w, h], dtype=np.float_)
 
     def __str__(self) -> str:
-        return f"Bbox {{ x1: {self.x1}, y1: {self.y1}, w: {self.w}, h: {self.h} }}"
+        return f"Bbox {{ x1: {self._x1}, y1: {self._y1}, w: {self._w}, h: {self._h} }}"
 
     @property
-    def x1(self) -> T:
-        return self._cvt(self._dt, self._x1)
+    def _x1(self) -> np.float_:
+        return self._data[0]
 
     @property
-    def x2(self) -> T:
-        return self._cvt(self._dt, self._x1 + self._w)
+    def _x2(self) -> np.float_:
+        return self._data[0] + self._data[2]
 
     @property
-    def y1(self) -> T:
-        return self._cvt(self._dt, self._y1)
+    def _y1(self) -> np.float_:
+        return self._data[1]
 
     @property
-    def y2(self) -> T:
-        return self._cvt(self._dt, self._y1 + self._h)
+    def _y2(self) -> np.float_:
+        return self._data[1] + self._data[3]
 
     @property
-    def cx(self) -> T:
-        return self._cvt(self._dt, self._x1 + self._w / 2)
+    def _cx(self) -> np.float_:
+        return self._data[0] + self._data[2] / 2
 
     @property
-    def cy(self) -> T:
-        return self._cvt(self._dt, self._y1 + self._h / 2)
+    def _cy(self) -> np.float_:
+        return self._data[1] + self._data[3] / 2
 
     @property
-    def h(self) -> T:
-        return self._cvt(self._dt, self._h)
+    def _h(self) -> np.float_:
+        return self._data[3]
 
     @property
-    def w(self) -> T:
-        return self._cvt(self._dt, self._w)
+    def _w(self) -> np.float_:
+        return self._data[2]
 
-    def unpack(self) -> tuple[T, T, T, T]:
+    @property
+    def x1(self) -> float:
+        return float(self._x1)
+
+    @property
+    def y1(self) -> float:
+        return float(self._y1)
+
+    @property
+    def w(self) -> float:
+        return float(self._w)
+
+    @property
+    def h(self) -> float:
+        return float(self._h)
+
+    def unpack(self) -> tuple[float, float, float, float]:
         return self.x1, self.y1, self.w, self.h
 
 
-class Center(Box[T]):
-    _cx: _BD
-    _cy: _BD
-    _w: _BD
-    _h: _BD
-
-    def __init__(
-        self,
-        cx: _BD,
-        cy: _BD,
-        w: _BD,
-        h: _BD,
-        dtype: Type[T] = float,
-    ) -> None:
-        super().__init__(dtype)
-        self._cx = cx
-        self._cy = cy
-        self._w = w
-        self._h = h
+class Center(Box):
+    def __init__(self, cx, cy, w, h) -> None:
+        super().__init__()
+        self._data = np.array([cx, cy, w, h], dtype=np.float_)
 
     def __str__(self) -> str:
-        return f"Center {{ cx: {self.cx}, cy: {self.cy}, w: {self.w}, h: {self.h} }}"
+        return f"Center {{ cx: {self._cx}, cy: {self._cy}, w: {self._w}, h: {self._h} }}"
 
     @property
-    def x1(self) -> T:
-        return self._cvt(self._dt, self._cx - self._w / 2)
+    def _x1(self) -> np.float_:
+        return self._data[0] - self._data[2] / 2
 
     @property
-    def x2(self) -> T:
-        return self._cvt(self._dt, self._cx + self._w / 2)
+    def _x2(self) -> np.float_:
+        return self._data[0] + self._data[2] / 2
 
     @property
-    def y1(self) -> T:
-        return self._cvt(self._dt, self._cy - self._h / 2)
+    def _y1(self) -> np.float_:
+        return self._data[1] - self._data[3] / 2
 
     @property
-    def y2(self) -> T:
-        return self._cvt(self._dt, self._cy + self._h / 2)
+    def _y2(self) -> np.float_:
+        return self._data[1] + self._data[3] / 2
 
     @property
-    def cx(self) -> T:
-        return self._cvt(self._dt, self._cx)
+    def _cx(self) -> np.float_:
+        return self._data[0]
 
     @property
-    def cy(self) -> T:
-        return self._cvt(self._dt, self._cy)
+    def _cy(self) -> np.float_:
+        return self._data[1]
 
     @property
-    def h(self) -> T:
-        return self._cvt(self._dt, self._h)
+    def _h(self) -> np.float_:
+        return self._data[3]
 
     @property
-    def w(self) -> T:
-        return self._cvt(self._dt, self._w)
+    def _w(self) -> np.float_:
+        return self._data[2]
 
-    def unpack(self) -> tuple[T, T, T, T]:
+    @property
+    def cx(self) -> float:
+        return float(self._cx)
+
+    @property
+    def cy(self) -> float:
+        return float(self._cy)
+
+    @property
+    def w(self) -> float:
+        return float(self._w)
+
+    @property
+    def h(self) -> float:
+        return float(self._h)
+
+    def unpack(self) -> tuple[float, float, float, float]:
         return self.cx, self.cy, self.w, self.h
 
-    def __sub__(self, other: Point) -> Center[T]:
-        return Center[T](
-            self.cx - self._cvt(self._dt, (other.x)),
-            self.cy - self._cvt(self._dt, (other.y)),
-            self.w,
-            self.h,
-            self._dt,  # type: ignore
-        )
+    def __sub__(self, other: Point) -> Center:
+        pt = np.array(other)
+        return Center(self._cx - pt[0], self.cy - pt[1], self.w, self.h)
 
-    def __add__(self, other: Point) -> Center[T]:
-        return Center[T](
-            self.cx + self._cvt(self._dt, (other.x)),
-            self.cy + self._cvt(self._dt, (other.y)),
-            self.w,
-            self.h,
-            self._dt,  # type: ignore
-        )
+    def __add__(self, other: Point) -> Center:
+        pt = np.array(other)
+        return Center(self.cx + pt[0], self.cy + pt[1], self.w, self.h)

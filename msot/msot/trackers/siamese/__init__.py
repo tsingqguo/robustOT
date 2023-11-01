@@ -32,7 +32,7 @@ class SiameseTracker(BaseTracker[C, S, R]):
     @staticmethod
     def _get_img(
         im: npt.NDArray[np.uint8],
-        center_pos: Point[float],
+        center_pos: Point,
         original_size: int,
         avg_chans: npt.NDArray[np.float_],
     ) -> tuple[

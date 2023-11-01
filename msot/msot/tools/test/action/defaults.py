@@ -2,6 +2,7 @@ import torch
 import numpy as np
 
 from msot.trackers.base import TrackResult
+from msot.utils.log import get_logger
 
 from ..utils.roles import TDRoles
 from .types import (
@@ -12,6 +13,8 @@ from .types import (
     ParamsFrameTrack,
 )
 
+log = get_logger(__name__)
+
 
 def action_empty(params: ParamsFrame) -> None:
     ...
@@ -20,12 +23,16 @@ def action_empty(params: ParamsFrame) -> None:
 def action_init(params: ParamsFrameInit) -> None:
     frame = params.historical.cur.frame.unwrap()
 
-    # TODO: role
+    if frame.gt.is_unbound():
+        log.error("frame.gt is required for action_init")
+        raise ValueError  # TODO: err impl
+
+    # TODO: role refine
     p_out = params.input_process.execute(frame.img.get(TDRoles.TEST))
     if isinstance(p_out.input, np.ndarray):
         params.raw_tracker.init(
-            frame.img.get(TDRoles.TEST),  # TODO: role
-            frame.bbox.get(TDRoles.TEST),  # TODO: role
+            frame.img.get(TDRoles.TEST),
+            frame.gt.get(TDRoles.TEST),
         )
     else:
         params.raw_tracker.init_with_scaled_template(p_out.input.crop)

@@ -6,7 +6,7 @@ from msot.utils.region import Bbox, Center
 
 def get_axis_aligned_bbox(
     region: npt.NDArray[np.float_],
-) -> Center[float]:
+) -> Center:
     if region.size == 8:
         cx = np.mean(region[0::2])
         cy = np.mean(region[1::2])

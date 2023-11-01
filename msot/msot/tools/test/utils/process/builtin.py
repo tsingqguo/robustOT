@@ -69,7 +69,7 @@ class DefaultCrop(Processor[DefaultCropAttrs, DefaultCropConfig]):
                     self.tracker.config,
                     self.tracker.state,
                     input,
-                    self.process_target.bbox,
+                    self.process_target.gt,
                     self.tracker.device,
                 )
             elif type(self.process_target) is ProcessSearch:

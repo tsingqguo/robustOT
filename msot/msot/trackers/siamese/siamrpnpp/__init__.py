@@ -9,7 +9,7 @@ import torch.nn.functional as F
 from msot.libs.pysot.utils.anchor import Anchors, AnchorsCfg
 from msot.models import TModel, TModelResult
 from msot.utils.dataship import DataCTR as DC
-from msot.utils.region import Bbox, Center, Point
+from msot.utils.region import Box, Center, Point, Polygon, Region
 
 from .. import (
     ScaledCrop,
@@ -161,7 +161,7 @@ class SiamRPNTracker(SiameseTracker[TrackConfig, TrackerState, TrackResult]):
     def get_subwindow(
         cls,
         im: npt.NDArray[np.uint8],
-        center_pos: Point[float],
+        center_pos: Point,
         input_size: int,
         original_size: int,
         avg_chans: npt.NDArray[np.float_],
@@ -222,13 +222,18 @@ class SiamRPNTracker(SiameseTracker[TrackConfig, TrackerState, TrackResult]):
         cfg: TrackConfig,
         st: TrackerState,
         img: npt.NDArray[np.uint8],
-        bbox: Bbox,
+        gt: Region,
         device: torch.device,
     ) -> ScaledCrop:
-        st.center.update(
-            Point(bbox.x1 + (bbox.w - 1) / 2, bbox.y1 + (bbox.h - 1) / 2)
-        )
-        st.size.update(np.array([bbox.w, bbox.h]))
+        if isinstance(gt, Box):
+            ...
+        elif isinstance(gt, Polygon):
+            gt = gt.to_corner()
+        else:
+            raise NotImplementedError
+
+        st.center.update(gt.center)
+        st.size.update(gt.size)
         st.channel_average.update(np.mean(img, axis=(0, 1)))
 
         size = cls.get_sizes(cfg, st)
@@ -314,8 +319,8 @@ class SiamRPNTracker(SiameseTracker[TrackConfig, TrackerState, TrackResult]):
         lr = penalty[best_idx] * score[best_idx] * cfg.lr
 
         # TODO:
-        cx = bbox[0] + st.center.val.x
-        cy = bbox[1] + st.center.val.y
+        cx = bbox[0] + st.center.get().x
+        cy = bbox[1] + st.center.get().y
 
         # smooth bbox
         width = st.size.val[0] * (1 - lr) + bbox[2] * lr
@@ -325,8 +330,8 @@ class SiamRPNTracker(SiameseTracker[TrackConfig, TrackerState, TrackResult]):
         cbox = cls._center_box_clip(cx, cy, width, height, frame_size)
 
         # update state
-        st.center.update(Point(cbox.cx, cbox.cy))
-        st.size.update(np.array([cbox.w, cbox.h], dtype=np.float_))
+        st.center.update(cbox.center)
+        st.size.update(cbox.size)
         st.score.update(score)
 
         bbox = cbox.to_bbox()
@@ -335,10 +340,10 @@ class SiamRPNTracker(SiameseTracker[TrackConfig, TrackerState, TrackResult]):
         return TrackResult(output=bbox, best_score=best_score)
 
     def init(
-        self, img: npt.NDArray[np.uint8], bbox: Bbox
+        self, img: npt.NDArray[np.uint8], gt: Region
     ) -> tuple[ScaledCrop, None]:
         scaled_z = self.get_template(
-            self.config, self.state, img, bbox, self.device
+            self.config, self.state, img, gt, self.device
         )
         return (
             scaled_z,

@@ -1,36 +1,34 @@
-from typing import Sequence, Type, TypeVar, overload
+from typing import Sequence, Type, overload
 
 from .boxes import Box, Bbox, Center, Corner
-from .point import Point, ValidType
+from .point import Point
 from .polygon import Bounds, Polygon
 
-T = TypeVar("T", bound=ValidType)
-
 
 @overload
 def eval_from_list(
-    points: Sequence[T], box_type: Type[Bbox] = Bbox
-) -> Polygon[T] | Bbox[T]:
+    points: Sequence[int | float], box_type: Type[Bbox] = Bbox
+) -> Polygon | Bbox:
     ...
 
 
 @overload
 def eval_from_list(
-    points: Sequence[T], box_type: Type[Center] = Center
-) -> Polygon[T] | Center[T]:
+    points: Sequence[int | float], box_type: Type[Center] = Center
+) -> Polygon | Center:
     ...
 
 
 @overload
 def eval_from_list(
-    points: Sequence[T], box_type: Type[Corner] = Corner
-) -> Polygon[T] | Corner[T]:
+    points: Sequence[int | float], box_type: Type[Corner] = Corner
+) -> Polygon | Corner:
     ...
 
 
 def eval_from_list(
-    points: Sequence[T], box_type: Type[Box] = Bbox
-) -> Polygon[T] | Box[T]:
+    points: Sequence[int | float], box_type: Type[Box] = Bbox
+) -> Polygon | Box:
     if len(points) < 4:
         raise ValueError("Invalid points")
     elif len(points) == 4:
@@ -40,7 +38,7 @@ def eval_from_list(
     # TODO: mask support
 
 
-def eval_polygon_from_list(points: Sequence[T] | list[T]) -> Polygon[T]:
+def eval_polygon_from_list(points: Sequence[int | float]) -> Polygon:
     vertices = []
     for i in range(0, len(points), 2):
         vertices.append(Point(points[i], points[i + 1]))
@@ -48,9 +46,9 @@ def eval_polygon_from_list(points: Sequence[T] | list[T]) -> Polygon[T]:
 
 
 def calculate_overlap_ratio(
-    p1: Polygon[T] | Box[T],
-    p2: Polygon[T] | Box[T],
-    bounds: Bounds[T] | None = None,
+    p1: Polygon | Box,
+    p2: Polygon | Box,
+    bounds: Bounds | None = None,
 ) -> float:
     if not isinstance(p1, Polygon):
         p1 = Polygon(p1.vertices)

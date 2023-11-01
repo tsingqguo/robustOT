@@ -8,9 +8,10 @@ import numpy as np
 
 from msot.trackers.base import BaseTracker
 from msot.trackers.types import FrameImage, ScaledCrop
+from msot.utils.color import Colors, fg
 from msot.utils.dataship import DataCTR as DC, DataShip as DS, VertDCAC
 from msot.utils.log import get_logger
-from msot.utils.region import Bbox
+from msot.utils.region import Region
 from msot.utils.timer import Timer, TimerType
 
 from ..roles import TDRoles
@@ -88,7 +89,7 @@ class _ProcessTarget:
 
 @dataclass
 class ProcessTemplate(_ProcessTarget):
-    bbox: Bbox
+    gt: Region
 
 
 @dataclass
@@ -147,17 +148,10 @@ class Processor(Generic[A, C]):
             self._process_target = None
 
     def __str__(self) -> str:
-        import json
-
-        def config_deserialize(obj):
-            if hasattr(obj, "__str__"):
-                return str(obj)
-            raise TypeError(f"unknown type: {obj.__class__.__name__}")
-
         return "{}: {} {}".format(
             self.__class__.__name__,
             self.name,
-            json.dumps(self.config.__dict__, default=config_deserialize),
+            self.config.__repr__(),
         )
 
     @property
@@ -271,7 +265,11 @@ class Processor(Generic[A, C]):
         if not isinstance(proc, Processor):
             raise TypeError("setup function must return `Processor`")
 
-        log.info("loading processor from file: {}\n\t{}".format(fp, str(proc)))
+        log.info(
+            "loading processor from file: {}\n{}".format(
+                fp, fg(proc, Colors.Black).__str__()
+            )
+        )
         return proc
 
 

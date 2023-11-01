@@ -8,7 +8,7 @@ import torch
 
 from msot.models import TModel
 from msot.utils.dataship import DataCTR as DC, DataShip as DS
-from msot.utils.region import Bbox, Point
+from msot.utils.region import Bbox, Point, Region
 
 from ..types import ScaledCrop
 from .config import TrackConfig
@@ -22,7 +22,7 @@ class TrackerState(DS):
     size: DC[npt.NDArray[np.float_]]
     """size in format of (width, height)"""
 
-    center: DC[Point[float]]
+    center: DC[Point]
     """center postition"""
 
     @property
@@ -54,7 +54,7 @@ class TrackerState(DS):
 
 
 class TrackResult(NamedTuple):
-    output: Bbox
+    output: Bbox  # TODO: mask/polygon support
     """output in bbox or polygon format"""
     best_score: float | None
 
@@ -141,7 +141,7 @@ class BaseTracker(Generic[C, S, R]):
         cfg: TrackConfig,
         st: TrackerState,
         img: npt.NDArray[np.uint8],
-        bbox: Bbox,
+        gt: Region,
         device: torch.device,
     ) -> ScaledCrop:
         raise NotImplementedError
@@ -161,7 +161,7 @@ class BaseTracker(Generic[C, S, R]):
         self.state.z_feat.update(z_feat)
 
     def init(
-        self, img: npt.NDArray[np.uint8], bbox: Bbox
+        self, img: npt.NDArray[np.uint8], gt: Region
     ) -> tuple[ScaledCrop, None]:
         raise NotImplementedError
 

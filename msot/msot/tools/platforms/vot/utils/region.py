@@ -10,8 +10,8 @@ Region: TypeAlias = Bbox  # TODO:
 
 class Rectangle:
     @staticmethod
-    def trax2msot(rect: trax.Rectangle) -> Bbox[float]:
-        return Bbox[float](*rect.bounds())
+    def trax2msot(rect: trax.Rectangle) -> Bbox:
+        return Bbox(*rect.bounds())
 
     @staticmethod
     def msot2trax(rect: Bbox) -> trax.Rectangle:

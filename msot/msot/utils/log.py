@@ -12,6 +12,27 @@ class LogLevel(Enum):
     ERROR = "error"
 
 
+class LogOnceFilter(logging.Filter):
+    def __init__(self, name: str = "logonce") -> None:
+        super().__init__(name)
+        self._logged = set()
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        if (
+            record.args is not None
+            and isinstance(record.args, dict)
+            and record.args.get("log_once", None)
+        ):
+            key = f"{record.filename}.{record.lineno}"
+            if key in self._logged:
+                return False
+            else:
+                self._logged.add(key)
+                return True
+        else:
+            return True
+
+
 class MSOTLogFormatter(logging.Formatter):
     COLORS = {
         "DEBUG": Colors.BrightBlue,
@@ -41,6 +62,7 @@ class MSOTLogHandler(logging.StreamHandler):
     def __init__(self, stream=None):
         super().__init__(stream)
         self.setFormatter(MSOTLogFormatter())
+        self.addFilter(LogOnceFilter())
 
 
 def setup(log_level: LogLevel) -> logging.Logger:

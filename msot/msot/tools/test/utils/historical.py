@@ -14,7 +14,7 @@ from msot.utils.dataship import (
     VertDCAC,
 )
 from msot.utils.option import NONE, Option, Some
-from msot.utils.region import Bbox, Center
+from msot.utils.region import Bbox, Region
 
 from .roles import TDRoles
 
@@ -28,18 +28,16 @@ V = TypeVar("V", bound="Frame | Tracking | Result | Analysis")
 
 class Frame(DS):
     img: DCAC[npt.NDArray[np.uint8], TDRoles]
-    bbox: DCAC[Bbox, TDRoles]
-    axis_aligned: DCAC[Center, TDRoles]
+    gt: DCAC[Region, TDRoles]
 
     @property
     def valid_names(self) -> set[str]:
-        return super().valid_names | {"img", "bbox", "axis_aligned"}
+        return super().valid_names | {"img", "gt"}
 
     def __init__(
         self,
         img: npt.NDArray[np.uint8],
-        bbox: Bbox,
-        axis_aligned: Center,
+        gt: Region | None = None,
     ) -> None:
         self.img = DCAC(
             TDRoles,
@@ -50,22 +48,15 @@ class Frame(DS):
             is_mutable=False,
             allow_unbound=False,
         )
-        self.bbox = DCAC(
+        self.gt = DCAC(
             TDRoles,
             lambda role: role >= TDRoles.TEST,
-            bbox,
             is_shared=True,
             is_mutable=False,
-            allow_unbound=False,
+            allow_unbound=True,
         )
-        self.axis_aligned = DCAC(
-            TDRoles,
-            lambda role: role >= TDRoles.TEST,
-            axis_aligned,
-            is_shared=True,
-            is_mutable=False,
-            allow_unbound=False,
-        )
+        if gt is not None:
+            self.gt.update(gt)
 
 
 class Result(DS, Generic[TS]):

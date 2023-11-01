@@ -2,14 +2,18 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass
 from functools import cached_property
-from typing import Generic, TypeVar
+from typing import Generic, TypeVar, TYPE_CHECKING
 
 import cv2
 import numpy as np
+import numpy.typing as npt
 
-from .point import Point, ValidType
+from .point import Point
 
-T = TypeVar("T", bound=ValidType)
+if TYPE_CHECKING:
+    from .boxes import Corner
+
+T = TypeVar("T", bound=int | float | np.float_)
 
 
 @dataclass
@@ -45,13 +49,13 @@ class Bounds(Generic[T]):
 
     @cached_property
     def area(self) -> float:
-        return (self.right - self.left) * (self.bottom - self.top)
+        return float((self.right - self.left) * (self.bottom - self.top))
 
 
-class Polygon(Generic[T]):
-    _vertices: list[Point[T]]
+class Polygon:
+    _vertices: list[Point]
 
-    def __init__(self, vertices: list[Point[T]]) -> None:
+    def __init__(self, vertices: list[Point]) -> None:
         self._vertices = vertices
 
     def __str__(self) -> str:
@@ -69,15 +73,15 @@ class Polygon(Generic[T]):
     def area(self) -> float:
         raise NotImplementedError
 
-    def get_bounds(self) -> Bounds[T]:
-        x: list[T] = []
-        y: list[T] = []
+    def get_bounds(self) -> Bounds[np.float_]:
+        vertices = np.stack(self.vertices)
 
-        for v in self.vertices:
-            x.append(v.x)
-            y.append(v.y)
-
-        return Bounds(top=min(y), bottom=max(y), left=min(x), right=max(x))
+        return Bounds(
+            top=np.min(vertices[:, 1]),
+            bottom=np.max(vertices[:, 1]),
+            left=np.min(vertices[:, 0]),
+            right=np.max(vertices[:, 0]),
+        )
 
     def get_overlap_ratio(
         self, other: Polygon, bounds: Bounds | None = None
@@ -87,7 +91,7 @@ class Polygon(Generic[T]):
 
         x = min(b1.left, b2.left)
         y = min(b1.top, b2.top)
-        w = int(max(b1.right, b2.right) - x) + 1
+        w = int(max(b1.right, b2.right) - x + 1)
         h = int(max(b1.bottom, b2.bottom) - y + 1)
 
         # if (
@@ -101,8 +105,14 @@ class Polygon(Generic[T]):
         # if b1.get_overlap_ratio(b2) == 0:
         #     return 0
 
-        v1_offset = self.offset_vertices(-x, -y)
-        v2_offset = other.offset_vertices(-x, -y)
+        def offset_vertices(v: list[Point], x, y) -> npt.NDArray[np.float_]:
+            pts = np.stack(v)
+            pts[:, 0] += x
+            pts[:, 1] += y
+            return pts
+
+        v1_offset = offset_vertices(self.vertices, -x, -y)
+        v2_offset = offset_vertices(other.vertices, -x, -y)
 
         mask1 = self.rasterize(v1_offset, w, h).flatten()
         mask2 = self.rasterize(v2_offset, w, h).flatten()
@@ -112,19 +122,27 @@ class Polygon(Generic[T]):
             np.sum(mask1) + np.sum(mask2) - mask_intersect
         )
 
-    def offset_vertices(self, x, y) -> list[Point[int]]:
-        vertices = []
-        for v in self.vertices:
-            vertices.append(Point(int(v.x + x), int(v.y + y)))
-
-        return vertices
-
     @staticmethod
-    def rasterize(vertices: list[Point[T]], width: int, height: int):
+    def rasterize(vertices: list[Point] | np.ndarray, width: int, height: int):
+        if isinstance(vertices, list):
+            vertices = np.stack(vertices)
+        vertices = vertices.astype(np.int_)
+
         mask = np.zeros((height, width), dtype=np.uint8)
         cv2.fillPoly(
             mask,
-            [np.array(list(map(lambda p: p.__tuple__(), vertices)))],
+            [vertices],
             [1],
         )
         return mask
+
+    def to_corner(self) -> Corner:
+        from .boxes import Corner
+
+        bounds = self.get_bounds()
+        return Corner(
+            bounds.left,
+            bounds.top,
+            bounds.right,
+            bounds.bottom,
+        )

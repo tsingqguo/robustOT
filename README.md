@@ -1,6 +1,9 @@
 # robustOT
 
-We build a benchmark to involve existing adversairal tracking attacks and defense methods and evaluates their performance, which could trick a series of novel works and push the progress to build a robust tracking system.
+We build a benchmark to involve existing adversarial tracking attacks and defense methods and evaluate their performance, which could trick a series of novel works and push the progress to build a robust tracking system. This framework involves our recent tracking defense work published in ICLR 2024.
+
+![example_a](./images/lrr.png)
+
 
 # Installation
 
@@ -81,3 +84,16 @@ source env.sh
     ```
 
 ### Processors
+
+
+## Bibtex
+
+```
+@article{chen2024lrr,
+  title={LRR: Language-Driven Resamplable Continuous Representation against Adversarial Tracking Attacks},
+  author={Chen, Jianlang and Ren, Xuhong and Guo, Qing and Juefei-Xu, Felix and Lin, Di and Feng, Wei and Ma, Lei and Zhao, Jianjun 
+},
+  journal={ICLR},
+  year={2024}
+}
+```

@@ -4,6 +4,10 @@ We build a benchmark to involve existing adversarial tracking attacks and defens
 
 ![example_a](./images/lrr.png)
 
+The detailed framework could be found in the following:
+
+![example_b](./images/lrr2.png)
+
 
 # Installation
 

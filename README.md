@@ -91,8 +91,7 @@ source env.sh
 ```
 @article{chen2024lrr,
   title={LRR: Language-Driven Resamplable Continuous Representation against Adversarial Tracking Attacks},
-  author={Chen, Jianlang and Ren, Xuhong and Guo, Qing and Juefei-Xu, Felix and Lin, Di and Feng, Wei and Ma, Lei and Zhao, Jianjun 
-},
+  author={Chen, Jianlang and Ren, Xuhong and Guo, Qing and Juefei-Xu, Felix and Lin, Di and Feng, Wei and Ma, Lei and Zhao, Jianjun},
   journal={ICLR},
   year={2024}
 }

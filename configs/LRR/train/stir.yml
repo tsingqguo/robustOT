@@ -1,0 +1,111 @@
+train_dataset:
+  dataset:
+    name: paired-h5-image-dbs
+    args:
+      root: $TRAIN_DSET_PATH/../train_mod/fgsm
+      h5fp:
+        - N5/vid00.h5
+        - N5/ytbb0_50k_0.h5
+        - N5/vid01.h5
+        - N5/ytbb0_50k_1.h5
+        - N5/vid02.h5
+        - N5/ytbb50k_100k_0.h5
+        - N5/vid03.h5
+        - N5/ytbb50k_100k_1.h5
+        - N5/vid04.h5
+        - N5/vid05.h5
+        - N5/vid06.h5
+        - det.h5
+      first_k: 490000
+      repeat: 1
+      shuffle: true
+      cache_index_fp:
+        - index_vid_ytbb_unique.json
+        - index_det_central.json
+      n_length: 5 # TODO:
+      db_n_length: 5
+  wrapper:
+    name: sr-implicit-paired-adv
+    args:
+      inp_size: 128
+      augment: true
+      n_length: 5 # TODO:
+      central_crop_region:  200
+      frame_wise_augmentation_args:
+        disable: True
+        max_shift_x: 0.1
+        max_shift_y: 0.1
+        max_scale_x: 0.1
+        max_scale_y: 0.1
+        max_rotation: 5
+  batch_size: 16 # TODO:
+
+val_dataset:
+  dataset:
+    name: paired-h5-image-dbs
+    args:
+      root: $TRAIN_DSET_PATH/../train_mod/fgsm
+      h5fp:
+        - N5/vid09.h5
+      first_k: 25000
+      repeat: 2
+      shuffle: true
+      cache_index_fp:
+        - index_vid_ytbb_unique.json
+      n_length: 5 # TODO:
+      db_n_length: 5
+  wrapper:
+    name: sr-implicit-paired-adv
+    args:
+      inp_size: 128
+      n_length: 5 # TODO:
+      central_crop_region:  128
+      frame_wise_augmentation_args:
+        disable: True
+        max_shift_x: 0.1
+        max_shift_y: 0.1
+        max_scale_x: 0.1
+        max_scale_y: 0.1
+        max_rotation: 5
+  batch_size: 32
+
+data_norm:
+  inp: {sub: [0.5], div: [0.5]}
+  gt: {sub: [0.5], div: [0.5]}
+
+model:
+  name: stir
+  args:
+    n_length: 5 # TODO:
+    n_eps: 0.05 # TODO:
+    encoder_spec:
+      name: edsr-baseline-n-length
+      args:
+        no_upsampling: true
+        n_length: 5 # TODO:
+    imnet_spec:
+      name: mlp
+      args:
+        out_dim: 15 # TODO: 3*n_length
+        hidden_list: [256, 256, 256, 256]
+
+
+optimizer:
+  name: adam
+  args:
+    lr: 1.e-4
+epoch_max: 3
+multi_step_lr:
+  milestones: [200, 400, 600, 800]
+  gamma: 0.5
+
+epoch_val: 1
+epoch_save: 1
+
+L2_reg:
+   flag: False
+   weight: 0
+gram_reg:
+   flag: False
+   weight: 0
+

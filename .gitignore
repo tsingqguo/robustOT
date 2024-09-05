@@ -1,0 +1,17 @@
+__pycache__
+save
+saves
+
+# PYSOT
+libs/toolkit/utils/region.c
+libs/toolkit/utils/region*.so
+libs/build
+experiments/pysot/pretrained/**/*.pth
+
+# CSA
+libs/pix2pix
+experiments/CSA/checkpoints/G*
+
+# experiments
+experiments/**/results*
+experiments/refine*

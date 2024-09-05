@@ -1,0 +1,17 @@
+cython
+opencv-python
+pyyaml
+h5py
+termtables
+tqdm
+typed_cap
+black
+scipy
+scikit-image
+Wand
+tensorboardX
+colorama
+visdom
+matplotlib
+torchattacks
+clip @ git+https://github.com/openai/CLIP.git

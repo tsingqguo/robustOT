@@ -253,3 +253,14 @@ torchrun --nproc_per_node=1 --master_port=2133 \
     -c $PYOTP_PATH/configs/siamrpnpp/train_trktp_refine_iclr.py \
     -b 32
 ```
+
+## Bibtex
+
+```
+@article{chen2024lrr,
+  title={LRR: Language-Driven Resamplable Continuous Representation against Adversarial Tracking Attacks},
+  author={Chen, Jianlang and Ren, Xuhong and Guo, Qing and Juefei-Xu, Felix and Lin, Di and Feng, Wei and Ma, Lei and Zhao, Jianjun},
+  journal={ICLR},
+  year={2024}
+}
+```

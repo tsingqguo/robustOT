@@ -1,5 +1,13 @@
 # LRR (archived)
 
+We propose a novel adversarial tracking defense method through spatial-temporal implicit representation, which can enhance the adversarial robustness of tracking methods under different tracking attacks. The work has been published in ICLR 2024. 
+
+![example_a](./images/lrr.png)
+
+The detailed framework could be found in the following:
+
+![example_b](./images/lrr2.png)
+
 ## Installation
 
 The following are the necessary software dependencies for this project:
